@@ -1,53 +1,163 @@
 @import "tailwindcss";
-@import "tw-animate-css";
-@import "shadcn/tailwind.css";
+
+/*---break--- */
 
 @custom-variant dark (&:is(.dark *));
+@source "../node_modules/@uploadthing/react/dist"; /** <-- depends on your project structure */
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-sans);
-  --font-mono: var(--font-geist-mono);
-  --color-sidebar-ring: var(--sidebar-ring);
-  --color-sidebar-border: var(--sidebar-border);
-  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
-  --color-sidebar-accent: var(--sidebar-accent);
-  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
-  --color-sidebar-primary: var(--sidebar-primary);
-  --color-sidebar-foreground: var(--sidebar-foreground);
-  --color-sidebar: var(--sidebar);
-  --color-chart-5: var(--chart-5);
-  --color-chart-4: var(--chart-4);
-  --color-chart-3: var(--chart-3);
-  --color-chart-2: var(--chart-2);
-  --color-chart-1: var(--chart-1);
-  --color-ring: var(--ring);
-  --color-input: var(--input);
-  --color-border: var(--border);
-  --color-destructive: var(--destructive);
-  --color-accent-foreground: var(--accent-foreground);
-  --color-accent: var(--accent);
-  --color-muted-foreground: var(--muted-foreground);
-  --color-muted: var(--muted);
-  --color-secondary-foreground: var(--secondary-foreground);
-  --color-secondary: var(--secondary);
-  --color-primary-foreground: var(--primary-foreground);
-  --color-primary: var(--primary);
-  --color-popover-foreground: var(--popover-foreground);
-  --color-popover: var(--popover);
-  --color-card-foreground: var(--card-foreground);
-  --color-card: var(--card);
-  --radius-sm: calc(var(--radius) * 0.6);
-  --radius-md: calc(var(--radius) * 0.8);
-  --radius-lg: var(--radius);
-  --radius-xl: calc(var(--radius) * 1.4);
-  --radius-2xl: calc(var(--radius) * 1.8);
-  --radius-3xl: calc(var(--radius) * 2.2);
-  --radius-4xl: calc(var(--radius) * 2.6);
+/* =============================================================
+   DESIGN TOKENS — Edit ALL site colors here
+   Light mode values → :root { }
+   Dark mode overrides → .dark { }
+   
+   How it works:
+     1. --ds-* variables hold the raw color values (what you edit)
+     2. --color-* variables expose them to Tailwind v4 as utilities
+        e.g. --color-brand → bg-brand, text-brand, from-brand, etc.
+   ============================================================= */
+
+:root {
+  /* ── Brand (indigo) ───────────────────────────────────────── */
+  --ds-brand: #4f46e5; /* indigo-600  — primary action color     */
+  --ds-brand-hover: #4338ca; /* indigo-700  — hover state              */
+  --ds-brand-text: #4f46e5; /* indigo-600  — links and text accents   */
+  --ds-brand-faint: #eef2ff; /* indigo-50   — very light tinted bg     */
+  --ds-brand-subtle: #e0e7ff; /* indigo-100  — light badge / chip bg    */
+  --ds-brand-dim: #4338ca; /* indigo-700  — badge text / strong      */
+
+  /* ── Accent (purple) ─────────────────────────────────────── */
+  --ds-accent: #9333ea; /* purple-600  — secondary action color   */
+  --ds-accent-hover: #7e22ce; /* purple-700  — hover state              */
+  --ds-accent-text: #9333ea; /* purple-600  — links and text accents   */
+  --ds-accent-faint: #faf5ff; /* purple-50   — very light tinted bg     */
+  --ds-accent-subtle: #f3e8ff; /* purple-100  — light badge / chip bg    */
+  --ds-accent-dim: #7e22ce; /* purple-700  — badge text / strong      */
+
+  /* ── Accent button border ───────────────────────────────── */
+  --ds-accent-border: #e9d5ff; /* purple-200  — button/dropdown borders   */
+
+  /* ── Surfaces ────────────────────────────────────────────── */
+  --ds-surface: #ffffff; /* white       — default card / panel bg  */
+  --ds-surface-muted: #f9fafb; /* gray-50     — page sections, sidebars  */
+  --ds-surface-elevated: #ffffff; /* white       — modals, dropdowns        */
+
+  /* ── Body text ───────────────────────────────────────────── */
+  --ds-body-primary: #111827; /* gray-900    — headings / main text     */
+  --ds-body-secondary: #4b5563; /* gray-600    — descriptive / muted text */
+  --ds-body-tertiary: #374151; /* gray-700    — labels, sub-text         */
+
+  /* ── Borders ─────────────────────────────────────────────── */
+  --ds-edge: #e5e7eb; /* gray-200    — default dividers         */
+  --ds-edge-strong: #d1d5db; /* gray-300    — inputs / emphasis        */
+
+  /* ── Page background gradient ────────────────────────────── */
+  --ds-page-from: #f9fafb; /* gray-50     — gradient start           */
+  --ds-page-mid: #eef2ff; /* indigo-50   — gradient middle          */
+  --ds-page-to: #faf5ff; /* purple-50   — gradient end             */
+
+  /* ── Navigation / header gradient ───────────────────────── */
+  --ds-nav-from: #312e81; /* indigo-900  — nav gradient start       */
+  --ds-nav-mid: #4c1d95; /* purple-900  — nav gradient middle      */
+  --ds-nav-end: #4c1d95; /* purple-900  — nav gradient end         */
+
+  /* ── Nav text (always on dark nav background) ───────────── */
+  --ds-nav-active: #a855f7; /* purple-500  — active nav link          */
+  --ds-nav-text-muted: #d1d5db; /* gray-300    — muted text on dark nav   */
+
+  /* ── Badges ──────────────────────────────────────────────── */
+  --ds-badge-brand-bg: #e0e7ff; /* indigo-100  — badge background         */
+  --ds-badge-brand-fg: #3730a3; /* indigo-700  — badge text               */
+  --ds-badge-accent-bg: #f3e8ff; /* purple-100  — badge background         */
+  --ds-badge-accent-fg: #6b21a8; /* purple-700  — badge text               */
+
+  /* ── Success state ───────────────────────────────────────── */
+  --ds-ok-bg: #f0fdf4; /* green-50                               */
+  --ds-ok-edge: #bbf7d0; /* green-200                              */
+  --ds-ok-fg: #166534; /* green-800                              */
+
+  /* ── Error state ─────────────────────────────────────────── */
+  --ds-err-bg: #fef2f2; /* red-50                                 */
+  --ds-err-edge: #fecaca; /* red-200                                */
+  --ds-err-fg: #991b1b; /* red-800                                */
+
+  /* ── Cart / icon accent ──────────────────────────────────── */
+  --ds-icon-accent: #dfc3ea; /* light purple — ShoppingBag icon color  */
+}
+
+/* ── Dark mode overrides ──────────────────────────────────────
+   Only values that DIFFER from light mode need to be listed.
+   ─────────────────────────────────────────────────────────── */
+.dark {
+  /* ── Brand (indigo) ──── */
+  --ds-brand: #6366f1; /* indigo-500  — brighter on dark bg      */
+  --ds-brand-hover: #4f46e5; /* indigo-600                             */
+  --ds-brand-text: #a5b4fc; /* indigo-300  — readable on dark bg      */
+  --ds-brand-faint: rgba(99, 102, 241, 0.1);
+  --ds-brand-subtle: #d1d5db; /* gray-300    — nav inactive text dark   */
+  --ds-brand-dim: #a5b4fc; /* indigo-300                             */
+
+  /* ── Accent (purple) ─── */
+  --ds-accent: #a855f7; /* purple-500                             */
+  --ds-accent-hover: #9333ea; /* purple-600                             */
+  --ds-accent-text: #d8b4fe; /* purple-300                             */
+  --ds-accent-faint: rgba(168, 85, 247, 0.2); /* purple-500/20         */
+  --ds-accent-subtle: rgba(168, 85, 247, 0.2); /* purple-500/20         */
+  --ds-accent-dim: #d8b4fe; /* purple-300                             */
+
+  /* ── Accent border ───── */
+  --ds-accent-border: rgba(192, 132, 252, 0.3); /* purple-400/30        */
+
+  /* ── Nav text on dark bg  */
+  --ds-nav-active: #facc15; /* yellow-400  — active nav link dark     */
+  --ds-nav-text-muted: #9ca3af; /* gray-400    — muted text on dark nav   */
+
+  /* ── Surfaces ─────────── */
+  --ds-surface: #0f172a; /* slate-900                            */
+  --ds-surface-muted: #1e293b; /* slate-800                            */
+  --ds-surface-elevated: #1a1f3a; /* original dropdown bg                 */
+
+  /* ── Body text ────────── */
+  --ds-body-primary: #ffffff;
+  --ds-body-secondary: #d1d5db; /* gray-300                               */
+  --ds-body-tertiary: #e5e7eb; /* gray-200                               */
+
+  /* ── Borders ──────────── */
+  --ds-edge: #1e293b; /* slate-800                              */
+  --ds-edge-strong: #334155; /* slate-700                              */
+
+  /* ── Page gradient ────── */
+  --ds-page-from: #020617; /* slate-950                              */
+  --ds-page-mid: #0f172a; /* slate-900                              */
+  --ds-page-to: #020617; /* slate-950                              */
+
+  /* ── Nav gradient ─────── */
+  --ds-nav-from: #0f172a; /* slate-900   — matches original header  */
+  --ds-nav-mid: #302b63; /* purple mid  — mobile drawer only       */
+  --ds-nav-end: #1e293b; /* slate-800   — matches original header  */
+
+  /* ── Badges ───────────── */
+  --ds-badge-brand-bg: rgba(99, 102, 241, 0.2);
+  --ds-badge-brand-fg: #a5b4fc; /* indigo-300                             */
+  --ds-badge-accent-bg: rgba(168, 85, 247, 0.2);
+  --ds-badge-accent-fg: #d8b4fe; /* purple-300                             */
+
+  /* ── Success ──────────── */
+  --ds-ok-bg: rgba(22, 163, 74, 0.3);
+  --ds-ok-edge: rgba(22, 197, 94, 0.3);
+  --ds-ok-fg: #bbf7d0; /* green-200                              */
+
+  /* ── Error ────────────── */
+  --ds-err-bg: rgba(239, 68, 68, 0.2);
+  --ds-err-edge: rgba(239, 68, 68, 0.3);
+  --ds-err-fg: #fecaca; /* red-200                                */
 }
 
 :root {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+  --radius: 0.625rem;
   --background: oklch(1 0 0);
   --foreground: oklch(0.145 0 0);
   --card: oklch(1 0 0);
@@ -62,16 +172,15 @@
   --muted-foreground: oklch(0.556 0 0);
   --accent: oklch(0.97 0 0);
   --accent-foreground: oklch(0.205 0 0);
-  --destructive: oklch(0.58 0.22 27);
+  --destructive: oklch(0.577 0.245 27.325);
   --border: oklch(0.922 0 0);
   --input: oklch(0.922 0 0);
   --ring: oklch(0.708 0 0);
-  --chart-1: oklch(0.809 0.105 251.813);
-  --chart-2: oklch(0.623 0.214 259.815);
-  --chart-3: oklch(0.546 0.245 262.881);
-  --chart-4: oklch(0.488 0.243 264.376);
-  --chart-5: oklch(0.424 0.199 265.638);
-  --radius: 0.625rem;
+  --chart-1: oklch(0.646 0.222 41.116);
+  --chart-2: oklch(0.6 0.118 184.704);
+  --chart-3: oklch(0.398 0.07 227.392);
+  --chart-4: oklch(0.828 0.189 84.429);
+  --chart-5: oklch(0.769 0.188 70.08);
   --sidebar: oklch(0.985 0 0);
   --sidebar-foreground: oklch(0.145 0 0);
   --sidebar-primary: oklch(0.205 0 0);
@@ -82,6 +191,278 @@
   --sidebar-ring: oklch(0.708 0 0);
 }
 
+@media (prefers-color-scheme: dark) {
+  :root {
+    /* --background: #0a0a0a; */
+  }
+}
+
+body {
+  /* background: var(--background); */
+  /* color: var(--foreground); */
+}
+
+/* Card Component CSS */
+
+/* ========= CUSTOM COMPONENT STYLES ========= */
+
+.card-container {
+  background: rgba(233, 227, 227, 0.226);
+  border-radius: 16px;
+  box-shadow: 0 4px 30px rgba(0, 0, 0, 0.1);
+  backdrop-filter: blur(8.1px);
+  -webkit-backdrop-filter: blur(8.1px);
+}
+
+/* ========= TAILWIND UTILITIES FROM YOUR CONFIG ========= */
+
+.flex-center {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.flex-between {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+/* ========= TYPOGRAPHY ========= */
+
+.p-semibold-14 {
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 1.25rem;
+}
+
+.p-medium-14 {
+  font-size: 14px;
+  font-weight: 500;
+  line-height: 1.25rem;
+}
+
+.p-medium-16 {
+  font-size: 16px;
+  font-weight: 500;
+  line-height: 1.5rem;
+}
+
+.p-medium-20 {
+  font-size: 20px;
+  font-weight: 500;
+  line-height: 30px;
+}
+
+/* Loading component CSS */
+
+.container-loader {
+  --uib-size: 40px;
+  --uib-color: black;
+  --uib-speed: 1s;
+  --uib-stroke: 3px;
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  height: var(--uib-size);
+  width: var(--uib-size);
+}
+
+:root.dark .container-loader,
+.dark .container-loader,
+[data-theme="dark"] .container-loader {
+  --uib-color: white;
+}
+
+.line {
+  position: absolute;
+  top: 0;
+  left: calc(50% - var(--uib-stroke) / 2);
+  display: flex;
+  align-items: flex-start;
+  height: 100%;
+  width: var(--uib-stroke);
+}
+
+.line::before {
+  content: "";
+  height: 22%;
+  width: 100%;
+  border-radius: calc(var(--uib-stroke) / 2);
+  background-color: var(--uib-color);
+  animation: pulse calc(var(--uib-speed)) ease-in-out infinite;
+  transition: background-color 0.3s ease;
+  transform-origin: center bottom;
+}
+
+.line:nth-child(1) {
+  transform: rotate(calc(360deg / -12 * 1));
+}
+.line:nth-child(1)::before {
+  animation-delay: calc(var(--uib-speed) / -12 * 1);
+}
+.line:nth-child(2) {
+  transform: rotate(calc(360deg / -12 * 2));
+}
+.line:nth-child(2)::before {
+  animation-delay: calc(var(--uib-speed) / -12 * 2);
+}
+.line:nth-child(3) {
+  transform: rotate(calc(360deg / -12 * 3));
+}
+.line:nth-child(3)::before {
+  animation-delay: calc(var(--uib-speed) / -12 * 3);
+}
+.line:nth-child(4) {
+  transform: rotate(calc(360deg / -12 * 4));
+}
+.line:nth-child(4)::before {
+  animation-delay: calc(var(--uib-speed) / -12 * 4);
+}
+.line:nth-child(5) {
+  transform: rotate(calc(360deg / -12 * 5));
+}
+.line:nth-child(5)::before {
+  animation-delay: calc(var(--uib-speed) / -12 * 5);
+}
+.line:nth-child(6) {
+  transform: rotate(calc(360deg / -12 * 6));
+}
+.line:nth-child(6)::before {
+  animation-delay: calc(var(--uib-speed) / -12 * 6);
+}
+.line:nth-child(7) {
+  transform: rotate(calc(360deg / -12 * 7));
+}
+.line:nth-child(7)::before {
+  animation-delay: calc(var(--uib-speed) / -12 * 7);
+}
+.line:nth-child(8) {
+  transform: rotate(calc(360deg / -12 * 8));
+}
+.line:nth-child(8)::before {
+  animation-delay: calc(var(--uib-speed) / -12 * 8);
+}
+.line:nth-child(9) {
+  transform: rotate(calc(360deg / -12 * 9));
+}
+.line:nth-child(9)::before {
+  animation-delay: calc(var(--uib-speed) / -12 * 9);
+}
+.line:nth-child(10) {
+  transform: rotate(calc(360deg / -12 * 10));
+}
+.line:nth-child(10)::before {
+  animation-delay: calc(var(--uib-speed) / -12 * 10);
+}
+.line:nth-child(11) {
+  transform: rotate(calc(360deg / -12 * 11));
+}
+
+.line:nth-child(11)::before {
+  animation-delay: calc(var(--uib-speed) / -12 * 11);
+}
+
+/*---break--- */
+
+@theme inline {
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+
+  /* ── Design-system color utilities ──────────────────────────
+     These map --ds-* tokens to Tailwind utility classes.
+     e.g. --color-brand → bg-brand / text-brand / from-brand / border-brand
+     Do NOT edit values here — change --ds-* in :root / .dark above.
+     ─────────────────────────────────────────────────────────── */
+  --color-brand: var(--ds-brand);
+  --color-brand-hover: var(--ds-brand-hover);
+  --color-brand-text: var(--ds-brand-text);
+  --color-brand-faint: var(--ds-brand-faint);
+  --color-brand-subtle: var(--ds-brand-subtle);
+  --color-brand-dim: var(--ds-brand-dim);
+
+  --color-accent-ds: var(--ds-accent);
+  --color-accent-ds-hover: var(--ds-accent-hover);
+  --color-accent-text: var(--ds-accent-text);
+  --color-accent-faint: var(--ds-accent-faint);
+  --color-accent-subtle: var(--ds-accent-subtle);
+  --color-accent-dim: var(--ds-accent-dim);
+
+  --color-surface: var(--ds-surface);
+  --color-surface-muted: var(--ds-surface-muted);
+  --color-surface-elevated: var(--ds-surface-elevated);
+
+  --color-body-primary: var(--ds-body-primary);
+  --color-body-secondary: var(--ds-body-secondary);
+  --color-body-tertiary: var(--ds-body-tertiary);
+
+  --color-edge: var(--ds-edge);
+  --color-edge-strong: var(--ds-edge-strong);
+
+  --color-page-from: var(--ds-page-from);
+  --color-page-mid: var(--ds-page-mid);
+  --color-page-to: var(--ds-page-to);
+
+  --color-nav-from: var(--ds-nav-from);
+  --color-nav-mid: var(--ds-nav-mid);
+  --color-nav-end: var(--ds-nav-end);
+
+  --color-badge-brand-bg: var(--ds-badge-brand-bg);
+  --color-badge-brand-fg: var(--ds-badge-brand-fg);
+  --color-badge-accent-bg: var(--ds-badge-accent-bg);
+  --color-badge-accent-fg: var(--ds-badge-accent-fg);
+
+  --color-ok-bg: var(--ds-ok-bg);
+  --color-ok-edge: var(--ds-ok-edge);
+  --color-ok-fg: var(--ds-ok-fg);
+
+  --color-err-bg: var(--ds-err-bg);
+  --color-err-edge: var(--ds-err-edge);
+  --color-err-fg: var(--ds-err-fg);
+
+  --color-icon-accent: var(--ds-icon-accent);
+  --color-accent-border: var(--ds-accent-border);
+  --color-nav-active: var(--ds-nav-active);
+  --color-nav-text-muted: var(--ds-nav-text-muted);
+
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-chart-1: var(--chart-1);
+  --color-chart-2: var(--chart-2);
+  --color-chart-3: var(--chart-3);
+  --color-chart-4: var(--chart-4);
+  --color-chart-5: var(--chart-5);
+  --color-sidebar: var(--sidebar);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-ring: var(--sidebar-ring);
+}
+
+/*---break--- */
+
 .dark {
   --background: oklch(0.145 0 0);
   --foreground: oklch(0.985 0 0);
@@ -89,23 +470,23 @@
   --card-foreground: oklch(0.985 0 0);
   --popover: oklch(0.205 0 0);
   --popover-foreground: oklch(0.985 0 0);
-  --primary: oklch(0.87 0.00 0);
+  --primary: oklch(0.922 0 0);
   --primary-foreground: oklch(0.205 0 0);
   --secondary: oklch(0.269 0 0);
   --secondary-foreground: oklch(0.985 0 0);
   --muted: oklch(0.269 0 0);
   --muted-foreground: oklch(0.708 0 0);
-  --accent: oklch(0.371 0 0);
+  --accent: oklch(0.269 0 0);
   --accent-foreground: oklch(0.985 0 0);
   --destructive: oklch(0.704 0.191 22.216);
   --border: oklch(1 0 0 / 10%);
   --input: oklch(1 0 0 / 15%);
   --ring: oklch(0.556 0 0);
-  --chart-1: oklch(0.809 0.105 251.813);
-  --chart-2: oklch(0.623 0.214 259.815);
-  --chart-3: oklch(0.546 0.245 262.881);
-  --chart-4: oklch(0.488 0.243 264.376);
-  --chart-5: oklch(0.424 0.199 265.638);
+  --chart-1: oklch(0.488 0.243 264.376);
+  --chart-2: oklch(0.696 0.17 162.48);
+  --chart-3: oklch(0.769 0.188 70.08);
+  --chart-4: oklch(0.627 0.265 303.9);
+  --chart-5: oklch(0.645 0.246 16.439);
   --sidebar: oklch(0.205 0 0);
   --sidebar-foreground: oklch(0.985 0 0);
   --sidebar-primary: oklch(0.488 0.243 264.376);
@@ -116,6 +497,8 @@
   --sidebar-ring: oklch(0.556 0 0);
 }
 
+/*---break--- */
+
 @layer base {
   * {
     @apply border-border outline-ring/50;
@@ -123,7 +506,29 @@
   body {
     @apply bg-background text-foreground;
   }
-  html {
-    @apply font-sans;
+}
+
+/* Carousel CSS */
+
+#carousel::-webkit-scrollbar {
+  display: none;
+}
+
+@keyframes scroll {
+  from {
+    transform: translateX(0);
   }
+  to {
+    transform: translateX(-100%);
+  }
+}
+
+.scroll-animation {
+  animation: scroll 10s infinite linear;
+}
+
+/* Pause animation on hover */
+#carousel:hover .scroll-animation,
+#carousel:has(.recommendation-item:hover) .scroll-animation {
+  animation-play-state: paused;
 }

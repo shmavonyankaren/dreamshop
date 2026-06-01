@@ -1,18 +1,18 @@
 import { SignUp } from "@clerk/nextjs";
-import Logo from "@/components/shared/Logo";
+import LogoName from "@/components/shared/Logo";
 
 export default function SignUpPage() {
   return (
-    <div className="min-h-screen bg-linear-to-br from-gray-50 via-indigo-50 to-purple-50 dark:bg-linear-to-br dark:from-slate-950 dark:via-slate-900 dark:to-slate-950 flex items-center justify-center py-8 sm:py-12 px-4 transition-colors duration-300">
+    <div className="grow bg-linear-to-br from-page-from via-page-mid to-page-to flex items-center justify-center py-8 sm:py-12 px-4 transition-colors duration-300">
       <div className="w-full max-w-md flex justify-center items-center flex-col">
         <div className="mb-6 sm:mb-8 text-center">
           <div className="flex items-center justify-center mb-4 sm:mb-6">
-            <Logo />
+            <LogoName />
           </div>
-          <h1 className="text-2xl sm:text-3xl md:text-4xl font-bold text-gray-900 dark:text-white mb-2">
+          <h1 className="text-2xl sm:text-3xl md:text-4xl font-bold text-body-primary mb-2">
             Join our community
           </h1>
-          <p className="text-xs sm:text-sm text-gray-600 dark:text-gray-300">
+          <p className="text-xs sm:text-sm text-body-secondary">
             Create an account to start sharing your stories
           </p>
         </div>
@@ -21,26 +21,25 @@ export default function SignUpPage() {
           appearance={{
             elements: {
               rootBox: "w-full",
-              card: "bg-white dark:bg-slate-900 shadow-xl dark:shadow-slate-950/40 rounded-2xl border border-gray-200 dark:border-slate-800 p-6",
-              headerTitle: "text-gray-900 dark:text-white font-bold text-lg",
-              headerSubtitle: "text-gray-600 dark:text-gray-300",
+              card: "bg-surface shadow-xl border border-edge rounded-2xl p-6",
+              headerTitle: "text-body-primary font-bold text-lg",
+              headerSubtitle: "text-body-secondary",
               socialButtonsBlockButton:
-                "bg-white dark:bg-slate-800 border-2 border-gray-300 dark:border-slate-700 hover:bg-gray-50 dark:hover:bg-slate-700 text-gray-700 dark:text-gray-100 font-medium transition-all",
+                "bg-surface border-2 border-edge-strong hover:bg-surface-muted text-body-tertiary font-medium transition-all",
               socialButtonsBlockButtonText: "font-medium",
               formButtonPrimary:
-                "bg-linear-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white font-semibold rounded-lg shadow-md hover:shadow-lg transition-all",
+                "bg-linear-to-r from-brand to-accent-ds hover:from-brand-hover hover:to-accent-ds-hover text-white font-semibold rounded-lg shadow-md hover:shadow-lg transition-all",
               formFieldInput:
-                "bg-white dark:bg-slate-800 text-gray-900 dark:text-gray-100 border border-gray-300 dark:border-slate-700 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500",
-              formFieldLabel: "text-gray-700 dark:text-gray-200 font-medium",
+                "bg-surface text-body-primary border border-edge-strong rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-brand focus:border-brand",
+              formFieldLabel: "text-body-tertiary font-medium",
               footerActionLink:
-                "text-indigo-600 hover:text-indigo-700 dark:text-indigo-400 font-medium",
-              identityPreviewText: "text-gray-700 dark:text-gray-200",
+                "text-brand-text hover:text-brand-hover font-medium",
+              identityPreviewText: "text-body-tertiary",
               identityPreviewEditButton:
-                "text-indigo-600 hover:text-indigo-700 dark:text-indigo-400",
-              formResendCodeLink:
-                "text-indigo-600 hover:text-indigo-700 dark:text-indigo-400",
+                "text-brand-text hover:text-brand-hover",
+              formResendCodeLink: "text-brand-text hover:text-brand-hover",
               otpCodeFieldInput:
-                "bg-white dark:bg-slate-800 border border-gray-300 dark:border-slate-700 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-indigo-500",
+                "bg-surface border border-edge-strong rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-brand",
             },
           }}
         />

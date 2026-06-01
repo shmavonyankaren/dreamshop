@@ -1,0 +1,176 @@
+// lib/actions/product.actions.ts
+"use server";
+
+import { Types } from "mongoose";
+import handleError from "../utils/handleError";
+import { connectDB } from "../db/connection";
+import Product from "../db/models/product.model";
+
+export type CreateProductParams = {
+  title: string;
+  description: string;
+  tags?: string[];
+  imageUrl: string;
+  price: string;
+  category: string;
+  owner: string;
+};
+
+export type UpdateProductParams = {
+  productId: string;
+  userId: string;
+  product: Partial<CreateProductParams>;
+};
+
+const serialize = (data: unknown) => JSON.parse(JSON.stringify(data));
+
+const isValidObjectId = (id: string) => Types.ObjectId.isValid(id);
+
+export const createProduct = async (product: CreateProductParams) => {
+  try {
+    await connectDB();
+
+    const newProduct = await Product.create(product);
+
+    return serialize(newProduct);
+  } catch (error) {
+    handleError(error);
+  }
+};
+
+export const getAllProducts = async () => {
+  try {
+    await connectDB();
+
+    const products = await Product.find()
+      .populate("category")
+      .populate("owner")
+      .sort({ createdAt: -1 });
+    return serialize(products);
+  } catch (error) {
+    handleError(error);
+  }
+};
+
+export const getProductById = async (productId: string) => {
+  try {
+    await connectDB();
+
+    if (!isValidObjectId(productId)) {
+      throw new Error("Invalid product ID");
+    }
+
+    const product = await Product.findById(productId)
+      .populate("category")
+      .populate("owner");
+
+    if (!product) {
+      throw new Error("Product not found");
+    }
+
+    return serialize(product);
+  } catch (error) {
+    handleError(error);
+  }
+};
+
+export const getProductsByUser = async (userId: string) => {
+  try {
+    await connectDB();
+
+    if (!isValidObjectId(userId)) {
+      throw new Error("Invalid user ID");
+    }
+
+    const products = await Product.find({ owner: userId })
+      .populate("category")
+      .populate("owner")
+      .sort({ createdAt: -1 });
+
+    return serialize(products);
+  } catch (error) {
+    handleError(error);
+  }
+};
+
+export const updateProduct = async ({
+  productId,
+  userId,
+  product,
+}: UpdateProductParams) => {
+  try {
+    await connectDB();
+
+    if (!isValidObjectId(productId) || !isValidObjectId(userId)) {
+      throw new Error("Invalid ID");
+    }
+
+    const productToUpdate = await Product.findById(productId);
+
+    if (!productToUpdate) {
+      throw new Error("Product not found");
+    }
+
+    if (productToUpdate.owner.toString() !== userId) {
+      throw new Error("Unauthorized: You are not the owner");
+    }
+
+    const updatedProduct = await Product.findByIdAndUpdate(productId, product, {
+      new: true,
+    })
+      .populate("category")
+      .populate("owner");
+
+    return serialize(updatedProduct);
+  } catch (error) {
+    handleError(error);
+  }
+};
+
+export const deleteProduct = async ({
+  productId,
+  userId,
+}: {
+  productId: string;
+  userId: string;
+}) => {
+  try {
+    await connectDB();
+
+    if (!isValidObjectId(productId) || !isValidObjectId(userId)) {
+      throw new Error("Invalid ID");
+    }
+
+    const product = await Product.findById(productId);
+
+    if (!product) {
+      throw new Error("Product not found");
+    }
+
+    if (product.owner.toString() !== userId) {
+      throw new Error("Unauthorized: You are not the owner");
+    }
+
+    const deletedProduct = await Product.findByIdAndDelete(productId);
+
+    return serialize(deletedProduct);
+  } catch (error) {
+    handleError(error);
+  }
+};
+
+export const deleteAllProductsByUser = async (userId: string) => {
+  try {
+    await connectDB();
+
+    if (!isValidObjectId(userId)) {
+      throw new Error("Invalid user ID");
+    }
+
+    const result = await Product.deleteMany({ owner: userId });
+
+    return serialize(result);
+  } catch (error) {
+    handleError(error);
+  }
+};

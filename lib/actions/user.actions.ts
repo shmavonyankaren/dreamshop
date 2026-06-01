@@ -1,15 +1,40 @@
 "use server";
 
-import { User } from "@/types";
-import { connectDB } from "../db";
-import UserModel from "../db/models/user.model";
+import { revalidatePath } from "next/cache";
+import handleError from "../utils/handleError";
+import sendEmail from "../utils/sendEmail";
+import type {
+  CreateUserParams,
+  UpdateUserParams,
+  User as UserType,
+} from "../types";
+import { connectDB } from "../db/connection";
+import User from "../db/models/user.model";
+import Product from "../db/models/product.model";
+import Order from "../db/models/order.model";
 
-// Create a user in the database when a user is created in Clerk
+export async function sendContactForm(form: FormData) {
+  try {
+    const name = form.get("name");
+    const email = form.get("email");
+    const subject = form.get("subject");
+    const message = form.get("message");
 
-export async function createUser(user: User) {
+    sendEmail(
+      name as string,
+      email as string,
+      subject as string,
+      message as string,
+    );
+  } catch (error) {
+    handleError(error);
+  }
+}
+
+export async function createUser(user: UserType) {
   await connectDB();
 
-  const newUser = await UserModel.create({
+  const newUser = await User.create({
     clerkId: user.clerkId,
     email: user.email,
     username: user.username,
@@ -34,7 +59,7 @@ export async function updateUser(
 ) {
   await connectDB();
 
-  const updatedUser = await UserModel.findOneAndUpdate(
+  const updatedUser = await User.findOneAndUpdate(
     { clerkId },
     {
       firstName: user.firstName,
@@ -53,7 +78,7 @@ export async function updateUser(
 export async function deleteUser(clerkId: string) {
   await connectDB();
 
-  const deletedUser = await UserModel.findOneAndDelete({ clerkId });
+  const deletedUser = await User.findOneAndDelete({ clerkId });
   return deletedUser;
 }
 
@@ -62,13 +87,13 @@ export async function deleteUser(clerkId: string) {
 export async function getUserByClerkId(clerkId: string) {
   await connectDB();
 
-  const user = await UserModel.findOne({ clerkId });
+  const user = await User.findOne({ clerkId });
   return user;
 }
 
 export async function getUserById(userId: string) {
   await connectDB();
 
-  const user = await UserModel.findById(userId);
+  const user = await User.findById(userId);
   return user;
 }

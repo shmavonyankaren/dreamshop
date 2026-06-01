@@ -1,19 +1,31 @@
+"use client";
+
+import Image from "next/image";
+import { useRouter } from "next/navigation";
+
 export default function Logo() {
+  const router = useRouter();
   return (
-    <div className="text-2xl font-bold">
-      <svg
-        xmlns="http://www.w3.org/2000/svg"
-        viewBox="0 0 24 24"
-        fill="currentColor"
-        className="w-6 h-6 inline-block mr-2"
-      >
-        <path
-          d="M12 2C6.47715 2 2 6.47715 2 12C2 17.5228 6.47715 22 12 22C17.5228 22 22 17.5228 22 12C22 6.47715 17.5228 2 12 2ZM11.9999 4C16.4183 4.00001 19.9999 7.58163 19.9999 12C19.9999 16.4184 16.4183 20.0001 11.9999 20C7.5815 20
-    3.9999 16.4184 3.9999 12C3.9999 7.58163 7.5815 4.00001 11.9999 4Z"
-        />
-        <path d="M10.0001 8C9.44772 8 9.0001 8.44772 9.0001 9V15C9.0001 15.5523 9.44772 16 10.0001 16H14C14.5524 16 15.0001 15.5523 15.0001 15V9C15.0001 8.44772 14.5524 8 14 8H10.0001Z" />
-      </svg>
-      DreamShop
+    <div
+      className="flex items-center gap-3 cursor-pointer"
+      onClick={() => router.push("/")}
+    >
+      <Image
+        src="/assets/logo.svg"
+        alt="DreamShop logo"
+        width={44}
+        height={44}
+      />
+
+      <div className="flex flex-col leading-none">
+        <span className="text-2xl font-extrabold tracking-tight text-white">
+          Dream<span className="text-accent-text">Shop</span>
+        </span>
+
+        <span className="mt-1 text-xs font-medium tracking-wide text-nav-text-muted">
+          Modern shopping experience
+        </span>
+      </div>
     </div>
   );
 }

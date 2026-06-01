@@ -1,27 +1,14 @@
-import { Model, Schema, model, models } from "mongoose";
+import { Schema, model, models } from "mongoose";
 
-export interface IUser {
-  clerkId: string;
-  email: string;
-  username: string;
-  firstName?: string | null;
-  lastName?: string | null;
-  photo?: string | null;
-}
+const UserSchema = new Schema({
+  clerkId: { type: String, required: true, unique: true },
+  email: { type: String, required: true, unique: true },
+  username: { type: String, required: true, unique: true },
+  firstName: { type: String, required: true },
+  lastName: { type: String, required: true },
+  photo: { type: String, required: true },
+});
 
-const userSchema = new Schema<IUser>(
-  {
-    clerkId: { type: String, required: true, unique: true, index: true },
-    email: { type: String, required: true, unique: true, index: true },
-    username: { type: String, required: true },
-    firstName: { type: String, default: null },
-    lastName: { type: String, default: null },
-    photo: { type: String, default: null },
-  },
-  { timestamps: true },
-);
+const User = models.User || model("User", UserSchema);
 
-const UserModel =
-  (models.User as Model<IUser>) || model<IUser>("User", userSchema);
-
-export default UserModel;
+export default User;
