@@ -17,24 +17,24 @@
    ============================================================= */
 
 :root {
-  /* ── Brand (indigo) ───────────────────────────────────────── */
-  --ds-brand: #4f46e5; /* indigo-600  — primary action color     */
-  --ds-brand-hover: #4338ca; /* indigo-700  — hover state              */
-  --ds-brand-text: #4f46e5; /* indigo-600  — links and text accents   */
-  --ds-brand-faint: #eef2ff; /* indigo-50   — very light tinted bg     */
-  --ds-brand-subtle: #e0e7ff; /* indigo-100  — light badge / chip bg    */
-  --ds-brand-dim: #4338ca; /* indigo-700  — badge text / strong      */
+  /* ── Brand (bright green) ──────────────────────────────────── */
+  --ds-brand: #22c55e; /* green-500   — vivid primary action     */
+  --ds-brand-hover: #16a34a; /* green-600   — hover state              */
+  --ds-brand-text: #15803d; /* green-700   — links and text accents   */
+  --ds-brand-faint: #f0fdf4; /* green-50    — very light tinted bg     */
+  --ds-brand-subtle: #bbf7d0; /* green-200   — nav text on dark bg      */
+  --ds-brand-dim: #15803d; /* green-700   — badge text / strong      */
 
-  /* ── Accent (purple) ─────────────────────────────────────── */
-  --ds-accent: #9333ea; /* purple-600  — secondary action color   */
-  --ds-accent-hover: #7e22ce; /* purple-700  — hover state              */
-  --ds-accent-text: #9333ea; /* purple-600  — links and text accents   */
-  --ds-accent-faint: #faf5ff; /* purple-50   — very light tinted bg     */
-  --ds-accent-subtle: #f3e8ff; /* purple-100  — light badge / chip bg    */
-  --ds-accent-dim: #7e22ce; /* purple-700  — badge text / strong      */
+  /* ── Accent (lime) ───────────────────────────────────────── */
+  --ds-accent: #84cc16; /* lime-500    — vivid secondary action   */
+  --ds-accent-hover: #65a30d; /* lime-600    — hover state              */
+  --ds-accent-text: #4d7c0f; /* lime-700    — links and text accents   */
+  --ds-accent-faint: #f7fee7; /* lime-50     — very light tinted bg     */
+  --ds-accent-subtle: #ecfccb; /* lime-100    — light badge / chip bg    */
+  --ds-accent-dim: #4d7c0f; /* lime-700    — badge text / strong      */
 
   /* ── Accent button border ───────────────────────────────── */
-  --ds-accent-border: #e9d5ff; /* purple-200  — button/dropdown borders   */
+  --ds-accent-border: #bef264; /* lime-300    — button/dropdown borders  */
 
   /* ── Surfaces ────────────────────────────────────────────── */
   --ds-surface: #ffffff; /* white       — default card / panel bg  */
@@ -51,24 +51,24 @@
   --ds-edge-strong: #d1d5db; /* gray-300    — inputs / emphasis        */
 
   /* ── Page background gradient ────────────────────────────── */
-  --ds-page-from: #f9fafb; /* gray-50     — gradient start           */
-  --ds-page-mid: #eef2ff; /* indigo-50   — gradient middle          */
-  --ds-page-to: #faf5ff; /* purple-50   — gradient end             */
+  --ds-page-from: #f0fdf4; /* green-50    — gradient start           */
+  --ds-page-mid: #f7fee7; /* lime-50     — gradient middle          */
+  --ds-page-to: #f0fdf4; /* green-50    — gradient end             */
 
   /* ── Navigation / header gradient ───────────────────────── */
-  --ds-nav-from: #312e81; /* indigo-900  — nav gradient start       */
-  --ds-nav-mid: #4c1d95; /* purple-900  — nav gradient middle      */
-  --ds-nav-end: #4c1d95; /* purple-900  — nav gradient end         */
+  --ds-nav-from: #14532d; /* green-900   — nav gradient start       */
+  --ds-nav-mid: #1a2e05; /* lime-950    — nav gradient middle      */
+  --ds-nav-end: #1a2e05; /* lime-950    — nav gradient end         */
 
   /* ── Nav text (always on dark nav background) ───────────── */
-  --ds-nav-active: #a855f7; /* purple-500  — active nav link          */
-  --ds-nav-text-muted: #d1d5db; /* gray-300    — muted text on dark nav   */
+  --ds-nav-active: #a3e635; /* lime-400    — vivid active nav link    */
+  --ds-nav-text-muted: #d9f99d; /* lime-200    — logo subtitle on dark nav */
 
   /* ── Badges ──────────────────────────────────────────────── */
-  --ds-badge-brand-bg: #e0e7ff; /* indigo-100  — badge background         */
-  --ds-badge-brand-fg: #3730a3; /* indigo-700  — badge text               */
-  --ds-badge-accent-bg: #f3e8ff; /* purple-100  — badge background         */
-  --ds-badge-accent-fg: #6b21a8; /* purple-700  — badge text               */
+  --ds-badge-brand-bg: #dcfce7; /* green-100   — badge background         */
+  --ds-badge-brand-fg: #15803d; /* green-700   — badge text               */
+  --ds-badge-accent-bg: #ecfccb; /* lime-100    — badge background         */
+  --ds-badge-accent-fg: #4d7c0f; /* lime-700    — badge text               */
 
   /* ── Success state ───────────────────────────────────────── */
   --ds-ok-bg: #f0fdf4; /* green-50                               */
@@ -81,75 +81,75 @@
   --ds-err-fg: #991b1b; /* red-800                                */
 
   /* ── Cart / icon accent ──────────────────────────────────── */
-  --ds-icon-accent: #dfc3ea; /* light purple — ShoppingBag icon color  */
+  --ds-icon-accent: #86efac; /* green-300   — ShoppingBag icon color   */
 }
 
 /* ── Dark mode overrides ──────────────────────────────────────
    Only values that DIFFER from light mode need to be listed.
    ─────────────────────────────────────────────────────────── */
 .dark {
-  /* ── Brand (indigo) ──── */
-  --ds-brand: #6366f1; /* indigo-500  — brighter on dark bg      */
-  --ds-brand-hover: #4f46e5; /* indigo-600                             */
-  --ds-brand-text: #a5b4fc; /* indigo-300  — readable on dark bg      */
-  --ds-brand-faint: rgba(99, 102, 241, 0.1);
+  /* ── Brand (neon green) ── */
+  --ds-brand: #4ade80; /* green-400   — vivid on dark bg         */
+  --ds-brand-hover: #22c55e; /* green-500                              */
+  --ds-brand-text: #86efac; /* green-300   — readable on dark bg      */
+  --ds-brand-faint: rgba(74, 222, 128, 0.1);
   --ds-brand-subtle: #d1d5db; /* gray-300    — nav inactive text dark   */
-  --ds-brand-dim: #a5b4fc; /* indigo-300                             */
+  --ds-brand-dim: #86efac; /* green-300                              */
 
-  /* ── Accent (purple) ─── */
-  --ds-accent: #a855f7; /* purple-500                             */
-  --ds-accent-hover: #9333ea; /* purple-600                             */
-  --ds-accent-text: #d8b4fe; /* purple-300                             */
-  --ds-accent-faint: rgba(168, 85, 247, 0.2); /* purple-500/20         */
-  --ds-accent-subtle: rgba(168, 85, 247, 0.2); /* purple-500/20         */
-  --ds-accent-dim: #d8b4fe; /* purple-300                             */
+  /* ── Accent (neon lime) ── */
+  --ds-accent: #bef264; /* lime-300    — neon chartreuse          */
+  --ds-accent-hover: #a3e635; /* lime-400                               */
+  --ds-accent-text: #d9f99d; /* lime-200                               */
+  --ds-accent-faint: rgba(190, 242, 100, 0.12);
+  --ds-accent-subtle: rgba(190, 242, 100, 0.2);
+  --ds-accent-dim: #d9f99d; /* lime-200                               */
 
-  /* ── Accent border ───── */
-  --ds-accent-border: rgba(192, 132, 252, 0.3); /* purple-400/30        */
+  /* ── Accent border ────── */
+  --ds-accent-border: rgba(163, 230, 53, 0.35); /* lime-400/35          */
 
-  /* ── Nav text on dark bg  */
-  --ds-nav-active: #facc15; /* yellow-400  — active nav link dark     */
-  --ds-nav-text-muted: #9ca3af; /* gray-400    — muted text on dark nav   */
+  /* ── Nav text on dark bg ─ */
+  --ds-nav-active: #bef264; /* lime-300    — vivid active nav link    */
+  --ds-nav-text-muted: #9ca3af; /* gray-400                               */
 
-  /* ── Surfaces ─────────── */
-  --ds-surface: #0f172a; /* slate-900                            */
-  --ds-surface-muted: #1e293b; /* slate-800                            */
-  --ds-surface-elevated: #1a1f3a; /* original dropdown bg                 */
+  /* ── Surfaces: neutral near-black so bright greens pop ──────── */
+  --ds-surface: #0a0a0a;
+  --ds-surface-muted: #111111;
+  --ds-surface-elevated: #1a1a1a;
 
   /* ── Body text ────────── */
   --ds-body-primary: #ffffff;
-  --ds-body-secondary: #d1d5db; /* gray-300                               */
-  --ds-body-tertiary: #e5e7eb; /* gray-200                               */
+  --ds-body-secondary: #d1d5db;
+  --ds-body-tertiary: #e5e7eb;
 
   /* ── Borders ──────────── */
-  --ds-edge: #1e293b; /* slate-800                              */
-  --ds-edge-strong: #334155; /* slate-700                              */
+  --ds-edge: #1f1f1f;
+  --ds-edge-strong: #2d2d2d;
 
   /* ── Page gradient ────── */
-  --ds-page-from: #020617; /* slate-950                              */
-  --ds-page-mid: #0f172a; /* slate-900                              */
-  --ds-page-to: #020617; /* slate-950                              */
+  --ds-page-from: #050505;
+  --ds-page-mid: #0a0a0a;
+  --ds-page-to: #050505;
 
   /* ── Nav gradient ─────── */
-  --ds-nav-from: #0f172a; /* slate-900   — matches original header  */
-  --ds-nav-mid: #302b63; /* purple mid  — mobile drawer only       */
-  --ds-nav-end: #1e293b; /* slate-800   — matches original header  */
+  --ds-nav-from: #052e16; /* green-950                              */
+  --ds-nav-mid: #1a2e05; /* lime-950                               */
+  --ds-nav-end: #052e16; /* green-950                              */
 
   /* ── Badges ───────────── */
-  --ds-badge-brand-bg: rgba(99, 102, 241, 0.2);
-  --ds-badge-brand-fg: #a5b4fc; /* indigo-300                             */
-  --ds-badge-accent-bg: rgba(168, 85, 247, 0.2);
-  --ds-badge-accent-fg: #d8b4fe; /* purple-300                             */
+  --ds-badge-brand-bg: rgba(74, 222, 128, 0.18);
+  --ds-badge-brand-fg: #86efac; /* green-300                              */
+  --ds-badge-accent-bg: rgba(190, 242, 100, 0.18);
+  --ds-badge-accent-fg: #d9f99d; /* lime-200                               */
 
   /* ── Success ──────────── */
   --ds-ok-bg: rgba(22, 163, 74, 0.3);
   --ds-ok-edge: rgba(22, 197, 94, 0.3);
-  --ds-ok-fg: #bbf7d0; /* green-200                              */
+  --ds-ok-fg: #bbf7d0;
 
   /* ── Error ────────────── */
   --ds-err-bg: rgba(239, 68, 68, 0.2);
   --ds-err-edge: rgba(239, 68, 68, 0.3);
-  --ds-err-fg: #fecaca; /* red-200                                */
+  --ds-err-fg: #fecaca;
 }
 
 :root {
