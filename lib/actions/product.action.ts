@@ -5,6 +5,7 @@ import { Types } from "mongoose";
 import handleError from "../utils/handleError";
 import { connectDB } from "../db/connection";
 import Product from "../db/models/product.model";
+import { PRODUCT_FIELDS, toProductDTO, type ProductRecord } from "../server/product-dto";
 
 export type CreateProductParams = {
   title: string;
@@ -32,7 +33,7 @@ export const createProduct = async (product: CreateProductParams) => {
 
     const newProduct = await Product.create(product);
 
-    return serialize(newProduct);
+    return toProductDTO(newProduct);
   } catch (error) {
     handleError(error);
   }
@@ -43,10 +44,10 @@ export const getAllProducts = async () => {
     await connectDB();
 
     const products = await Product.find()
-      .populate("category")
-      .populate("owner")
+      .select(PRODUCT_FIELDS)
+      .populate({ path: "category", select: "_id name" })
       .sort({ createdAt: -1 });
-    return serialize(products);
+    return products.map((product: ProductRecord) => toProductDTO(product));
   } catch (error) {
     handleError(error);
   }
@@ -61,14 +62,14 @@ export const getProductById = async (productId: string) => {
     }
 
     const product = await Product.findById(productId)
-      .populate("category")
-      .populate("owner");
+      .select(PRODUCT_FIELDS)
+      .populate({ path: "category", select: "_id name" });
 
     if (!product) {
       throw new Error("Product not found");
     }
 
-    return serialize(product);
+    return toProductDTO(product);
   } catch (error) {
     handleError(error);
   }
@@ -83,11 +84,11 @@ export const getProductsByUser = async (userId: string) => {
     }
 
     const products = await Product.find({ owner: userId })
-      .populate("category")
-      .populate("owner")
+      .select(PRODUCT_FIELDS)
+      .populate({ path: "category", select: "_id name" })
       .sort({ createdAt: -1 });
 
-    return serialize(products);
+    return products.map((product: ProductRecord) => toProductDTO(product));
   } catch (error) {
     handleError(error);
   }
@@ -118,10 +119,10 @@ export const updateProduct = async ({
     const updatedProduct = await Product.findByIdAndUpdate(productId, product, {
       new: true,
     })
-      .populate("category")
-      .populate("owner");
+      .select(PRODUCT_FIELDS)
+      .populate({ path: "category", select: "_id name" });
 
-    return serialize(updatedProduct);
+    return updatedProduct ? toProductDTO(updatedProduct) : null;
   } catch (error) {
     handleError(error);
   }
@@ -153,7 +154,7 @@ export const deleteProduct = async ({
 
     const deletedProduct = await Product.findByIdAndDelete(productId);
 
-    return serialize(deletedProduct);
+    return deletedProduct ? toProductDTO(deletedProduct) : null;
   } catch (error) {
     handleError(error);
   }

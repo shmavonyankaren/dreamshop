@@ -1,144 +1,48 @@
-export type CartApiResponse = {
-  count: number;
-  cart?: any;
-};
-
-export async function fetchProductsByIds(ids: string[]) {
-  if (!ids?.length) return [];
-
-  const query = ids.map(encodeURIComponent).join(",");
-  const response = await fetch(`/api/products?ids=${query}`);
+import type { CartApiResponse, CartDTO, LocalCartItem, ProductDTO } from "../cart-contract";
+import { clearLocalCart, getLocalCart } from "./localCart";
+export type { CartApiResponse } from "../cart-contract";
+async function request<T>(url: string, body?: unknown): Promise<T> {
+  const response = await fetch(url, { cache: "no-store", ...(body === undefined ? {} : {
+    method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body),
+  }) });
   const data = await response.json();
-
-  if (!response.ok) {
-    throw new Error(data?.message || "Failed to fetch product details");
-  }
-
-  return data.products || [];
+  if (!response.ok) throw new Error(data.message || "Unable to update your cart. Please retry.");
+  return data as T;
 }
-
-export async function fetchCartByUser(userId: string) {
-  const response = await fetch(
-    `/api/cart?userId=${encodeURIComponent(userId)}`,
-  );
-  const data = await response.json();
-
-  if (!response.ok) {
-    throw new Error(data?.message || "Failed to fetch cart");
-  }
-
-  return data.cart;
+export async function fetchProductsByIds(ids: string[]): Promise<ProductDTO[]> {
+  if (!ids.length) return [];
+  return (await request<{ products: ProductDTO[] }>("/api/products?ids=" + ids.map(encodeURIComponent).join(","))).products;
 }
-
-export async function addProductToUserCart(
-  userId: string,
-  productId: string,
-  quantity = 1,
-): Promise<CartApiResponse> {
-  const response = await fetch("/api/cart/add", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({ userId, productId, quantity }),
-  });
-
-  const data = await response.json();
-
-  if (!response.ok) {
-    throw new Error(data?.message || "Failed to add product to cart");
-  }
-
-  return {
-    count: data.count ?? 0,
-    cart: data.cart,
-  };
+export async function fetchCartByUser(): Promise<CartDTO | null> {
+  return (await request<{ cart: CartDTO | null }>("/api/cart")).cart;
 }
-
-export async function updateProductQuantity(
-  userId: string,
-  productId: string,
-  quantity: number,
-): Promise<CartApiResponse> {
-  const response = await fetch("/api/cart/update", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({ userId, productId, quantity }),
-  });
-
-  const data = await response.json();
-
-  if (!response.ok) {
-    throw new Error(data?.message || "Failed to update cart quantity");
-  }
-
-  return {
-    count: data.count ?? 0,
-    cart: data.cart,
-  };
+export function addProductToUserCart(productId: string, quantity = 1) {
+  return request<CartApiResponse>("/api/cart/add", { productId, quantity });
 }
-
-export async function removeProductFromUserCart(
-  userId: string,
-  productId: string,
-): Promise<CartApiResponse> {
-  const response = await fetch("/api/cart/remove", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({ userId, productId }),
-  });
-
-  const data = await response.json();
-
-  if (!response.ok) {
-    throw new Error(data?.message || "Failed to remove product from cart");
-  }
-
-  return {
-    count: data.count ?? 0,
-    cart: data.cart,
-  };
+export function updateProductQuantity(productId: string, quantity: number) {
+  return request<CartApiResponse>("/api/cart/update", { productId, quantity });
 }
-
-export async function mergeLocalCartToUserCart(
-  userId: string,
-  items: { productId: string; quantity: number }[],
-): Promise<CartApiResponse> {
-  const response = await fetch("/api/cart/merge", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({ userId, items }),
-  });
-
-  const data = await response.json();
-
-  if (!response.ok) {
-    throw new Error(
-      data?.message || "Failed to merge local cart into user cart",
-    );
-  }
-
-  return {
-    count: data.count ?? 0,
-    cart: data.cart,
-  };
+export function removeProductFromUserCart(productId: string) {
+  return request<CartApiResponse>("/api/cart/remove", { productId });
 }
-
-export async function getCartCount(userId: string) {
-  const response = await fetch(
-    `/api/cart/count?userId=${encodeURIComponent(userId)}`,
-  );
-  const data = await response.json();
-
-  if (!response.ok) {
-    throw new Error(data?.message || "Failed to fetch cart count");
-  }
-
-  return data.count ?? 0;
+export function mergeLocalCartToUserCart(items: LocalCartItem[]) {
+  return request<CartApiResponse>("/api/cart/merge", { items });
+}
+export async function getCartCount() {
+  return (await request<{ count: number }>("/api/cart/count")).count;
+}
+// Coalesce simultaneous provider/page effects in this tab, including Strict Mode.
+// This is not durable idempotency: a lost response or another tab can still replay.
+const merges = new Map<string, Promise<void>>();
+export function ensureGuestCartMerged(sessionKey: string): Promise<void> {
+  const existing = merges.get(sessionKey);
+  if (existing) return existing;
+  const items = getLocalCart();
+  if (!items.length) return Promise.resolve();
+  const pending = mergeLocalCartToUserCart(items).then(() => {
+    // Do not discard guest edits made while the request was in flight.
+    if (JSON.stringify(getLocalCart()) === JSON.stringify(items)) clearLocalCart();
+  }).finally(() => { merges.delete(sessionKey); });
+  merges.set(sessionKey, pending);
+  return pending;
 }

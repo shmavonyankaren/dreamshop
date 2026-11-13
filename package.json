@@ -6,7 +6,8 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "test:cart": "node --test tests/cart.test.cjs"
   },
   "dependencies": {
     "@clerk/nextjs": "^7.0.1",

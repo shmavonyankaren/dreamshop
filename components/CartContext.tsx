@@ -2,8 +2,8 @@
 
 import React, { createContext, useContext, useEffect, useState } from "react";
 import { useUser } from "@clerk/nextjs";
-import { clearLocalCart, getLocalCart } from "@/lib/utils/localCart";
-import { getCartCount, mergeLocalCartToUserCart } from "@/lib/utils/cartClient";
+import { getLocalCart } from "@/lib/utils/localCart";
+import { getCartCount, ensureGuestCartMerged } from "@/lib/utils/cartClient";
 
 type CartContextType = {
   cartItemsCount: number;
@@ -16,46 +16,28 @@ type CartContextType = {
 const CartContext = createContext<CartContextType | null>(null);
 
 export function CartProvider({ children }: { children: React.ReactNode }) {
-  const { user, isSignedIn } = useUser();
+  const { user, isSignedIn, isLoaded } = useUser();
   const [cartItemsCount, setCartItemsCount] = useState(0);
 
   useEffect(() => {
+    let cancelled = false;
     const syncCartCount = async () => {
-      const localCart = getLocalCart();
-
-      if (!isSignedIn) {
-        setCartItemsCount(localCart.length);
-        return;
-      }
-
-      const userId = user?.publicMetadata?.userId as string | undefined;
-
-      if (!userId) {
-        setCartItemsCount(localCart.length);
-        return;
-      }
-
-      if (localCart.length > 0) {
-        try {
-          const mergeResult = await mergeLocalCartToUserCart(userId, localCart);
-          clearLocalCart();
-          setCartItemsCount(mergeResult.count ?? 0);
-          return;
-        } catch (error) {
-          console.error("Failed to merge local cart to user cart:", error);
-        }
-      }
-
+      if (!isLoaded) return;
       try {
-        const count = await getCartCount(userId);
-        setCartItemsCount(count ?? localCart.length);
+        let count = getLocalCart().reduce((sum, item) => sum + item.quantity, 0);
+        if (isSignedIn && user) {
+          await ensureGuestCartMerged(user.id);
+          count = await getCartCount();
+        }
+        if (!cancelled) setCartItemsCount(count);
       } catch (error) {
-        console.error("Failed to fetch cart count:", error);
+        if (!cancelled) setCartItemsCount(0);
+        console.error("Unable to synchronize cart:", error);
       }
     };
-
-    syncCartCount();
-  }, [isSignedIn, user]);
+    void syncCartCount();
+    return () => { cancelled = true; };
+  }, [isLoaded, isSignedIn, user]);
 
   const increaseCartCount = () => {
     setCartItemsCount((prev) => prev + 1);

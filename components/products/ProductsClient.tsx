@@ -1,249 +1,67 @@
 "use client";
-
-import {
-  useOptimistic,
-  useTransition,
-  useEffect,
-  useMemo,
-  useState,
-} from "react";
-
+import { useOptimistic, useTransition, useEffect, useMemo, useState } from "react";
 import { useCart } from "@/components/CartContext";
-
 import { useUser } from "@clerk/nextjs";
 import SearchAndFilters from "./SearchAndFilters";
 import ProductList from "./ProductList";
 import { ProductType } from "@/lib/types";
-import {
-  addToLocalCart,
-  getLocalCart,
-  removeLocalCartItem,
-  updateLocalCartItem,
-} from "@/lib/utils/localCart";
-import {
-  addProductToUserCart,
-  fetchCartByUser,
-  removeProductFromUserCart,
-  updateProductQuantity,
-} from "@/lib/utils/cartClient";
-
-export default function ProductsClient({
-  products,
-}: {
-  products: ProductType[];
-}) {
+import { addToLocalCart, getLocalCart, removeLocalCartItem, updateLocalCartItem } from "@/lib/utils/localCart";
+import { addProductToUserCart, fetchCartByUser, ensureGuestCartMerged, removeProductFromUserCart, updateProductQuantity } from "@/lib/utils/cartClient";
+export default function ProductsClient({ products }: { products: ProductType[] }) {
   const [searchQuery, setSearchQuery] = useState("");
   const [category, setCategory] = useState("all");
+  const [error, setError] = useState<string | null>(null);
   const { setCartItemsCount } = useCart();
   const [cartItems, setCartItems] = useState<Record<string, number>>({});
-  const [optimisticCart, updateOptimisticCart] = useOptimistic(
-    cartItems,
-    (
-      state,
-      action: {
-        type: "update" | "increment" | "remove" | "replace";
-        productId?: string;
-        quantity?: number;
-        items?: Record<string, number>;
-      },
-    ) => {
-      switch (action.type) {
-        case "update":
-          return {
-            ...state,
-            [action.productId as string]: action.quantity ?? 1,
-          };
-
-        case "increment":
-          return {
-            ...state,
-            [action.productId as string]:
-              (state[action.productId as string] ?? 0) + 1,
-          };
-
-        case "remove": {
-          const next = { ...state };
-          delete next[action.productId as string];
-          return next;
-        }
-
-        case "replace":
-          return action.items ?? state;
-        default:
-          return state;
-      }
-    },
-  );
-
-  const [isPending, startTransition] = useTransition();
-
-  const { user, isSignedIn } = useUser();
-
-  const loadCartItems = async () => {
-    const currentUserId =
-      typeof user?.publicMetadata?.userId === "string"
-        ? user.publicMetadata.userId
-        : "";
-
-    if (isSignedIn && currentUserId) {
+  const [optimisticCart, updateOptimisticCart] = useOptimistic(cartItems, (state, action: { id: string; quantity: number }) => {
+    const next = { ...state };
+    if (action.quantity === 0) delete next[action.id]; else next[action.id] = action.quantity;
+    return next;
+  });
+  const [, startTransition] = useTransition();
+  const { user, isSignedIn, isLoaded } = useUser();
+  useEffect(() => {
+    let cancelled = false;
+    const load = async () => {
+      if (!isLoaded) return;
       try {
-        const cart = await fetchCartByUser(currentUserId);
-        const items = cart?.items || [];
-        const map: Record<string, number> = {};
-
-        items.forEach((item: any) => {
-          const productId = String(
-            item.product?._id ?? item.product?.id ?? item.product ?? "",
-          );
-          if (productId) {
-            map[productId] = item.quantity ?? 1;
-          }
-        });
-
-        setCartItems(map);
-        return;
+        let entries: [string, number][];
+        if (isSignedIn && user) {
+          await ensureGuestCartMerged(user.id);
+          const cart = await fetchCartByUser();
+          entries = cart?.items.map((item) => [item.product._id, item.quantity]) ?? [];
+        } else entries = getLocalCart().map((item) => [item.productId, item.quantity]);
+        if (!cancelled) { setCartItems(Object.fromEntries(entries)); setError(null); }
       } catch (error) {
-        console.error("Failed to load user cart items:", error);
+        if (!cancelled) { setCartItems({}); setError(error instanceof Error ? error.message : "Unable to load cart."); }
       }
-    }
-
-    const localItems = getLocalCart();
-    const map: Record<string, number> = {};
-    localItems.forEach((item) => {
-      map[item.productId] = item.quantity;
-    });
-    setCartItems(map);
-  };
-
+    };
+    void load();
+    return () => { cancelled = true; };
+  }, [isLoaded, isSignedIn, user]);
   useEffect(() => {
-    const count = Object.values(optimisticCart).reduce(
-      (total, quantity) => total + quantity,
-      0,
-    );
-
-    setCartItemsCount(count);
-  }, [optimisticCart]);
-
-  useEffect(() => {
-    startTransition(() => {
-      updateOptimisticCart({ type: "replace", items: cartItems });
-    });
-  }, [cartItems, updateOptimisticCart, startTransition]);
-
-  const handleAddToCart = async (productId: string | number) => {
+    setCartItemsCount(Object.values(optimisticCart).reduce((sum, quantity) => sum + quantity, 0));
+  }, [optimisticCart, setCartItemsCount]);
+  const mutate = (productId: string | number, operation: "add" | "update" | "remove", quantity = 1) => {
+    if (!isLoaded) return;
     const id = String(productId);
-    const currentUserId =
-      typeof user?.publicMetadata?.userId === "string"
-        ? user.publicMetadata.userId
-        : "";
-
-    startTransition(() => {
-      updateOptimisticCart({
-        type: "increment",
-        productId: id,
-      });
-
-      setCartItems((prev) => ({
-        ...prev,
-        [id]: (prev[id] ?? 0) + 1,
-      }));
-    });
-
-    if (!isSignedIn || !currentUserId) {
-      const currentQuantity = cartItems[id] ?? 0;
-      if (currentQuantity === 0) {
-        addToLocalCart(id);
-      } else {
-        updateLocalCartItem(id, currentQuantity + 1);
-      }
-      return;
-    }
-
-    try {
-      await addProductToUserCart(currentUserId, id, 1);
-    } catch (error) {
-      console.error("Failed to add product to cart:", error);
-    }
-  };
-
-  const handleQuantityChange = (
-    productId: string | number,
-    quantity: number,
-  ) => {
-    const id = String(productId);
-
-    const currentUserId =
-      typeof user?.publicMetadata?.userId === "string"
-        ? user.publicMetadata.userId
-        : "";
-
     startTransition(async () => {
-      // optimistic UI update
-      updateOptimisticCart({
-        type: "update",
-        productId: id,
-        quantity,
-      });
-
+      setError(null);
+      updateOptimisticCart({ id, quantity: operation === "remove" ? 0 : operation === "add" ? (cartItems[id] ?? 0) + 1 : quantity });
       try {
-        if (isSignedIn && currentUserId) {
-          await updateProductQuantity(currentUserId, id, quantity);
+        if (isSignedIn) {
+          const result = operation === "add" ? await addProductToUserCart(id) : operation === "remove" ? await removeProductFromUserCart(id) : await updateProductQuantity(id, quantity);
+          setCartItems(Object.fromEntries(result.cart?.items.map((item) => [item.product._id, item.quantity]) ?? []));
         } else {
-          updateLocalCartItem(id, quantity);
+          const items = operation === "add" ? addToLocalCart(id) : operation === "remove" ? removeLocalCartItem(id) : updateLocalCartItem(id, quantity);
+          setCartItems(Object.fromEntries(items.map((item) => [item.productId, item.quantity])));
         }
-
-        // commit real state
-        setCartItems((prev) => ({
-          ...prev,
-          [id]: quantity,
-        }));
-      } catch (error) {
-        console.error(error);
-
-        // rollback automatically:
-        // optimistic state disappears because real state never changed
-      }
+      } catch (error) { setError(error instanceof Error ? error.message : "Unable to update cart."); }
     });
   };
-
-  const handleRemoveItem = (productId: string | number) => {
-    const id = String(productId);
-
-    const currentUserId =
-      typeof user?.publicMetadata?.userId === "string"
-        ? user.publicMetadata.userId
-        : "";
-
-    startTransition(async () => {
-      updateOptimisticCart({
-        type: "remove",
-        productId: id,
-      });
-
-      try {
-        if (isSignedIn && currentUserId) {
-          await removeProductFromUserCart(currentUserId, id);
-        } else {
-          removeLocalCartItem(id);
-        }
-
-        setCartItems((prev) => {
-          const next = { ...prev };
-          delete next[id];
-          return next;
-        });
-      } catch (error) {
-        console.error(error);
-
-        // rollback automatic
-      }
-    });
-  };
-
-  useEffect(() => {
-    loadCartItems();
-  }, [isSignedIn, user]);
-
+  const handleAddToCart = (id: string | number) => mutate(id, "add");
+  const handleQuantityChange = (id: string | number, quantity: number) => mutate(id, "update", quantity);
+  const handleRemoveItem = (id: string | number) => mutate(id, "remove");
   const filteredProducts = useMemo(() => {
     return products.filter((product) => {
       const categoryLabel =
@@ -263,6 +81,7 @@ export default function ProductsClient({
 
   return (
     <section className="flex flex-col justify-start items-start">
+      {error && <p role="alert">{error}</p>}
       <SearchAndFilters
         searchQuery={searchQuery}
         setSearchQuery={setSearchQuery}

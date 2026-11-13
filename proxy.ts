@@ -1,18 +1,3 @@
-// import { clerkMiddleware } from "@clerk/nextjs/server";
-
-// export default clerkMiddleware();
-
-// export const config = {
-//   matcher: [
-//     // Skip Next.js internals and all static files, unless found in search params
-//     "/((?!_next|[^?]*\\.(?:html?|css|js(?!on)|jpe?g|webp|png|gif|svg|ttf|woff2?|ico|csv|docx?|xlsx?|zip|webmanifest)).*)",
-//     // Always run for Clerk's auto-proxy path
-//     "/__clerk/(.*)",
-//     // Always run for API routes
-//     "/(api|trpc)(.*)",
-//   ],
-// };
-
 import { clerkMiddleware, createRouteMatcher } from "@clerk/nextjs/server";
 
 const isPublicRoute = createRouteMatcher([
@@ -21,7 +6,7 @@ const isPublicRoute = createRouteMatcher([
   "/about-us",
   "/contact",
   "/faq",
-  "/all-products",
+  "/all-products(.*)",
   "/creator-page/(.*)",
   "/product/(.*)",
   "/sign-in(.*)",
@@ -42,10 +27,11 @@ export default clerkMiddleware(async (auth, req) => {
   await auth.protect();
 });
 
-// Configure matcher to run middleware for page routes only (exclude API and static files).
+// Run Clerk for pages and account-cart APIs; webhook and public product APIs remain excluded.
 export const config = {
   matcher: [
-    // Run middleware for all non-static, non-_next, non-api routes
+    "/api/cart(.*)",
+    // Establish API auth context; services enforce access.
     "/((?!_next|api|trpc|[^?]*\\.(?:html?|css|js(?!on)|jpe?g|webp|png|gif|svg|ttf|woff2?|ico|csv|docx?|xlsx?|zip|webmanifest)).*)",
   ],
 };
