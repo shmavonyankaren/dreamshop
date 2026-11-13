@@ -4,7 +4,7 @@ import { useState } from "react";
 import { ShoppingCart } from "lucide-react";
 import { useUser } from "@clerk/nextjs";
 import { useCart } from "@/components/CartContext";
-import { addToLocalCart } from "@/lib/utils/localCart";
+import { mutateGuestCart } from "@/lib/utils/localCart";
 import { addProductToUserCart } from "@/lib/utils/cartClient";
 
 type AddCartButtonProps = {
@@ -27,7 +27,7 @@ export default function AddCartButton({
     try {
       if (onAdd) { await onAdd(productId); return; }
       if (!isSignedIn) {
-        const items = addToLocalCart(id);
+        const items = await mutateGuestCart("add", id);
         setCartItemsCount(items.reduce((sum, item) => sum + item.quantity, 0));
       } else {
         const result = await addProductToUserCart(id);

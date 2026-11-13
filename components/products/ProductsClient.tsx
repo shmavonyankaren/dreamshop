@@ -3,15 +3,16 @@ import { useOptimistic, useTransition, useEffect, useMemo, useState } from "reac
 import { useCart } from "@/components/CartContext";
 import { useUser } from "@clerk/nextjs";
 import SearchAndFilters from "./SearchAndFilters";
+import CartSyncStatus from "@/components/cart/CartSyncStatus";
 import ProductList from "./ProductList";
 import { ProductType } from "@/lib/types";
-import { addToLocalCart, getLocalCart, removeLocalCartItem, updateLocalCartItem } from "@/lib/utils/localCart";
-import { addProductToUserCart, fetchCartByUser, ensureGuestCartMerged, removeProductFromUserCart, updateProductQuantity } from "@/lib/utils/cartClient";
+import { getLocalCart, mutateGuestCart } from "@/lib/utils/localCart";
+import { addProductToUserCart, fetchCartByUser, removeProductFromUserCart, updateProductQuantity } from "@/lib/utils/cartClient";
 export default function ProductsClient({ products }: { products: ProductType[] }) {
   const [searchQuery, setSearchQuery] = useState("");
   const [category, setCategory] = useState("all");
   const [error, setError] = useState<string | null>(null);
-  const { setCartItemsCount } = useCart();
+  const { setCartItemsCount, refreshVersion } = useCart();
   const [cartItems, setCartItems] = useState<Record<string, number>>({});
   const [optimisticCart, updateOptimisticCart] = useOptimistic(cartItems, (state, action: { id: string; quantity: number }) => {
     const next = { ...state };
@@ -27,7 +28,6 @@ export default function ProductsClient({ products }: { products: ProductType[] }
       try {
         let entries: [string, number][];
         if (isSignedIn && user) {
-          await ensureGuestCartMerged(user.id);
           const cart = await fetchCartByUser();
           entries = cart?.items.map((item) => [item.product._id, item.quantity]) ?? [];
         } else entries = getLocalCart().map((item) => [item.productId, item.quantity]);
@@ -38,7 +38,7 @@ export default function ProductsClient({ products }: { products: ProductType[] }
     };
     void load();
     return () => { cancelled = true; };
-  }, [isLoaded, isSignedIn, user]);
+  }, [isLoaded, isSignedIn, user, refreshVersion]);
   useEffect(() => {
     setCartItemsCount(Object.values(optimisticCart).reduce((sum, quantity) => sum + quantity, 0));
   }, [optimisticCart, setCartItemsCount]);
@@ -53,7 +53,7 @@ export default function ProductsClient({ products }: { products: ProductType[] }
           const result = operation === "add" ? await addProductToUserCart(id) : operation === "remove" ? await removeProductFromUserCart(id) : await updateProductQuantity(id, quantity);
           setCartItems(Object.fromEntries(result.cart?.items.map((item) => [item.product._id, item.quantity]) ?? []));
         } else {
-          const items = operation === "add" ? addToLocalCart(id) : operation === "remove" ? removeLocalCartItem(id) : updateLocalCartItem(id, quantity);
+          const items = await mutateGuestCart(operation, id, quantity);
           setCartItems(Object.fromEntries(items.map((item) => [item.productId, item.quantity])));
         }
       } catch (error) { setError(error instanceof Error ? error.message : "Unable to update cart."); }
@@ -81,6 +81,7 @@ export default function ProductsClient({ products }: { products: ProductType[] }
 
   return (
     <section className="flex flex-col justify-start items-start">
+      <CartSyncStatus />
       {error && <p role="alert">{error}</p>}
       <SearchAndFilters
         searchQuery={searchQuery}

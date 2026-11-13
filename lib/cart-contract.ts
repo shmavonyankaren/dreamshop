@@ -12,7 +12,16 @@ export const cartItemsSchema = z.array(cartItemSchema).max(MAX_CART_ITEMS).refin
 );
 export const addCartSchema = cartItemSchema.extend({ quantity: quantitySchema.default(1) });
 export const removeCartSchema = z.object({ productId: productIdSchema }).strict();
-export const mergeCartSchema = z.object({ items: cartItemsSchema.min(1) }).strict();
+export const operationIdSchema = z.string().uuid().transform((id) => id.toLowerCase());
+export const mergeCartSchema = z.object({
+  items: cartItemsSchema,
+  operationId: operationIdSchema.optional(),
+  parentOperationId: operationIdSchema.optional(),
+  actorHash: z.string().regex(/^[a-f0-9]{64}$/).optional(),
+}).strict().refine((value) => value.items.length > 0 || !!value.parentOperationId,
+  "An empty merge requires a previous operation")
+  .refine((value) => !value.parentOperationId || !!value.operationId,
+    "A follow-up requires an operation ID");
 export type LocalCartItem = z.infer<typeof cartItemSchema>;
 
 export type ProductDTO = {
@@ -26,6 +35,21 @@ export type ProductDTO = {
 };
 export type CartDTO = { items: { product: ProductDTO; quantity: number }[] };
 export type CartApiResponse = { cart: CartDTO | null; count: number };
+export type MergeReason = "PRODUCT_UNAVAILABLE" | "QUANTITY_LIMIT" | "ITEM_LIMIT" | "ACCOUNT_CHANGED";
+export type MergeItemOutcome = {
+  productId: string;
+  requested: number;
+  applied: number;
+  before: number;
+  after: number;
+  reason?: MergeReason;
+};
+export type MergeOutcome = {
+  operationId: string;
+  items: MergeItemOutcome[];
+};
+export type MergeResponse = CartApiResponse & { reconciliation: MergeOutcome };
+export const MAX_MERGE_RECEIPTS = 256;
 
 export class CartError extends Error {
   constructor(public status: number, public code: string, message: string) {

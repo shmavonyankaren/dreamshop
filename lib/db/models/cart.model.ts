@@ -39,6 +39,14 @@ const CartSchema = new Schema(
       unique: true,
     },
     items: [CartItemSchema],
+    // Kept with the cart so quantities and receipts commit in one atomic write.
+    // No TTL: deleting receipts would allow old operations to be replayed.
+    mergeReceipts: { type: [new Schema({
+      operationId: { type: String, required: true },
+      fingerprint: { type: String, required: true },
+      version: { type: Number, required: true },
+      outcome: { type: Schema.Types.Mixed, required: true },
+    }, { _id: false })], default: [] },
   },
   { timestamps: true },
 );

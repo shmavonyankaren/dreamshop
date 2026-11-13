@@ -2,10 +2,11 @@
 import { useEffect, useOptimistic, useState, useTransition } from "react";
 import { useUser } from "@clerk/nextjs";
 import { useCart } from "@/components/CartContext";
+import CartSyncStatus from "@/components/cart/CartSyncStatus";
 import ProductList from "@/components/products/ProductList";
 import type { ProductDTO } from "@/lib/cart-contract";
-import { getLocalCart, removeLocalCartItem, updateLocalCartItem } from "@/lib/utils/localCart";
-import { fetchCartByUser, fetchProductsByIds, ensureGuestCartMerged, removeProductFromUserCart, updateProductQuantity } from "@/lib/utils/cartClient";
+import { getLocalCart, mutateGuestCart } from "@/lib/utils/localCart";
+import { fetchCartByUser, fetchProductsByIds, removeProductFromUserCart, updateProductQuantity } from "@/lib/utils/cartClient";
 type CartProduct = ProductDTO & { quantity: number };
 type Action = { type: "update" | "remove"; productId: string; quantity?: number };
 export default function CartClient() {
@@ -14,7 +15,7 @@ export default function CartClient() {
   const [error, setError] = useState<string | null>(null);
   const [, startTransition] = useTransition();
   const { user, isSignedIn, isLoaded } = useUser();
-  const { setCartItemsCount } = useCart();
+  const { setCartItemsCount, refreshVersion } = useCart();
   const [optimisticProducts, updateOptimisticProducts] = useOptimistic(cartProducts, (state, action: Action) =>
     action.type === "remove" ? state.filter((item) => item._id !== action.productId)
       : state.map((item) => item._id === action.productId ? { ...item, quantity: action.quantity! } : item));
@@ -30,7 +31,6 @@ export default function CartClient() {
       try {
         let products: CartProduct[];
         if (isSignedIn && user) {
-          await ensureGuestCartMerged(user.id);
           const cart = await fetchCartByUser();
           products = cart?.items.map((item) => ({ ...item.product, quantity: item.quantity })) ?? [];
         } else {
@@ -44,7 +44,7 @@ export default function CartClient() {
     };
     void load();
     return () => { cancelled = true; };
-  }, [isLoaded, isSignedIn, user]);
+  }, [isLoaded, isSignedIn, user, refreshVersion]);
   const mutate = (productId: string | number, quantity?: number) => {
     if (!isLoaded) return;
     const id = String(productId);
@@ -56,7 +56,7 @@ export default function CartClient() {
           const result = quantity === undefined ? await removeProductFromUserCart(id) : await updateProductQuantity(id, quantity);
           setCartProducts(result.cart?.items.map((item) => ({ ...item.product, quantity: item.quantity })) ?? []);
         } else {
-          if (quantity === undefined) removeLocalCartItem(id); else updateLocalCartItem(id, quantity);
+          await mutateGuestCart(quantity === undefined ? "remove" : "update", id, quantity);
           setCartProducts((items) => quantity === undefined ? items.filter((item) => item._id !== id) : items.map((item) => item._id === id ? { ...item, quantity } : item));
         }
       } catch (error) { setError(error instanceof Error ? error.message : "Unable to update cart."); }
@@ -71,10 +71,12 @@ export default function CartClient() {
   if (error) return <p role="alert" className="p-12">{error} <button onClick={() => window.location.reload()}>Retry</button></p>;
 
   if (optimisticProducts.length === 0) {
-    return <p className="p-12">Your cart is empty.</p>;
+    return <div><CartSyncStatus /><p className="p-12">Your cart is empty.</p></div>;
   }
 
   return (
+    <>
+    <CartSyncStatus />
     <div className="grow flex justify-center items-center p-12">
       <ProductList
         products={optimisticProducts}
@@ -83,5 +85,6 @@ export default function CartClient() {
         onRemove={handleRemove}
       />
     </div>
+    </>
   );
 }
