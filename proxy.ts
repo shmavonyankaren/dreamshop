@@ -27,10 +27,11 @@ export default clerkMiddleware(async (auth, req) => {
   await auth.protect();
 });
 
-// Run Clerk for pages and account-cart APIs; webhook and public product APIs remain excluded.
+// Run Clerk for pages, account-cart APIs and identity recovery; webhooks verify Svix independently.
 export const config = {
   matcher: [
     "/api/cart(.*)",
+    "/api/identity/sync",
     // Establish API auth context; services enforce access.
     "/((?!_next|api|trpc|[^?]*\\.(?:html?|css|js(?!on)|jpe?g|webp|png|gif|svg|ttf|woff2?|ico|csv|docx?|xlsx?|zip|webmanifest)).*)",
   ],

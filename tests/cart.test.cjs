@@ -39,7 +39,7 @@ function fixture(shared = {}) {
   const mocks = {
     "@clerk/nextjs/server": { auth: async () => ({ userId: state.clerkId }) },
     "lib/db/connection.ts": { connectDB: async () => {} },
-    "lib/db/models/user.model.ts": { default: { findOne(filter) { assert.equal(filter.clerkId, state.clerkId); return query(() => state.mapped ? { _id: state.clerkId === "clerk-b" ? B : A } : null); } } },
+    "lib/db/models/user.model.ts": { default: { findOne(filter) { assert.equal(filter.clerkId, state.clerkId); return query(() => state.mapped ? { _id: state.clerkId === "clerk-b" ? B : A, status: state.accountStatus } : null); } } },
     "lib/db/models/cart.model.ts": { default: cartModel },
     "lib/db/models/product.model.ts": { default: {
       find(filter) { return query(() => [...state.products.values()].filter((product) => !filter?._id || filter._id.$in.includes(product._id))); },
@@ -207,6 +207,12 @@ test("a second authenticated identity resolves its own MongoDB account", async (
 });
 
 const uuid = () => require("node:crypto").randomUUID();
+for (const status of ["suspended", "deleted"]) test(status + " identities cannot read or mutate carts and retain receipts", async () => {
+  const f = fixture(); await f.call("merge", { operationId: uuid(), items: [payloads.add] });
+  const before = structuredClone(f.state.carts.get(A)); f.state.accountStatus = status;
+  for (const [route, body] of Object.entries(payloads)) assert.equal((await f.call(route, body)).status, 403);
+  assert.deepEqual(f.state.carts.get(A), before);
+});
 const operation = (items = [payloads.add], extra = {}) => ({ operationId: uuid(), items, ...extra });
 function connectBrowser(f, intercept) {
   const requests = [];

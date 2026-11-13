@@ -3,6 +3,7 @@
 import React, { createContext, useContext, useEffect, useState } from "react";
 import { useUser } from "@clerk/nextjs";
 import { getLocalCart } from "@/lib/utils/localCart";
+import { recoverAuthenticatedIdentity } from "@/lib/utils/identityClient";
 import { getCartCount, ensureGuestCartMerged, setCartSession, getCartSyncStatus, dismissGuestConflicts, type SyncStatus } from "@/lib/utils/cartClient";
 
 import { CART_KEY, CART_EVENT, SYNC_EVENT, readGuestState } from "@/lib/utils/guest-state";
@@ -28,8 +29,8 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
   const [refreshVersion, setRefreshVersion] = useState(0);
   const retrySync = async () => {
     if (!isSignedIn || !user) return;
-    try { await ensureGuestCartMerged(user.id); }
-    catch { /* The coordinator publishes the recoverable error. */ }
+    try { await recoverAuthenticatedIdentity(user.id); await ensureGuestCartMerged(user.id); }
+    catch (error) { setSyncStatus({ state: "error", message: error instanceof Error ? error.message : "Account synchronization failed. Please retry." }); }
     setRefreshVersion((version) => version + 1);
   };
   const dismissSaved = async () => {
@@ -75,13 +76,19 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
       try {
         let count = getLocalCart().reduce((sum, item) => sum + item.quantity, 0);
         if (isSignedIn && user) {
+          await recoverAuthenticatedIdentity(user.id);
+          if (cancelled) return;
+          setRefreshVersion((version) => version + 1);
           try { await ensureGuestCartMerged(user.id); }
           catch { /* A recoverable merge failure must not hide the account count. */ }
           count = await getCartCount();
         }
         if (!cancelled) setCartItemsCount(count);
       } catch (error) {
-        if (!cancelled) setCartItemsCount(0);
+        if (!cancelled) {
+          setCartItemsCount(0);
+          setSyncStatus({ state: "error", message: "Account synchronization failed. Retry synchronization to recover your account." });
+        }
         console.error("Unable to synchronize cart:", error);
       }
     };

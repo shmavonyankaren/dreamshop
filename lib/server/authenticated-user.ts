@@ -1,14 +1,18 @@
 import "server-only";
 import { auth } from "@clerk/nextjs/server";
-import { connectDB } from "../db/connection";
-import User from "../db/models/user.model";
+import { findIdentity } from "./identity-service";
+import type { InternalUserDTO } from "../identity-contract";
 import { CartError } from "../cart-contract";
 
-export async function requireCartUser(): Promise<string> {
+export async function requireAuthenticatedUser(): Promise<InternalUserDTO> {
   const { userId: clerkId } = await auth();
   if (!clerkId) throw new CartError(401, "UNAUTHORIZED", "Sign in to access your account cart.");
-  await connectDB();
-  const user = await User.findOne({ clerkId }).select("_id");
+  const user = await findIdentity(clerkId);
   if (!user) throw new CartError(409, "USER_SYNC_PENDING", "Your account is still being synchronized. Please try again shortly.");
-  return user._id.toString();
+  if (user.status !== "active") throw new CartError(403, "ACCOUNT_INACTIVE", "This account is not available.");
+  return user;
+}
+
+export async function requireCartUser(): Promise<string> {
+  return (await requireAuthenticatedUser()).id;
 }

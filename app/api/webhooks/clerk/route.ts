@@ -1,125 +1,37 @@
 import { Webhook } from "svix";
-import { headers } from "next/headers";
-import { WebhookEvent } from "@clerk/nextjs/server";
-import { clerkClient } from "@clerk/nextjs/server";
-import { NextResponse } from "next/server";
+import { z } from "zod";
+import { synchronizeClerkProfile, deleteClerkIdentity } from "@/lib/server/identity-service";
+import { identityResponse, readWebhookBody } from "@/lib/server/identity-http";
+import { IdentityError } from "@/lib/identity-contract";
 
-import { createUser, deleteUser, updateUser } from "@/lib/actions/user.actions";
+const envelopeSchema = z.object({ type: z.string(), data: z.unknown() });
+const deletionSchema = z.object({
+  data: z.object({ id: z.string().min(1).max(256), deleted: z.literal(true) }),
+  timestamp: z.number().int().nonnegative().max(8_640_000_000_000_000),
+});
 
 export async function POST(req: Request) {
-  const WEBHOOK_SECRET = process.env.CLERK_WEBHOOK_SIGNING_SECRET;
-
-  if (!WEBHOOK_SECRET) {
-    return new Response("Missing CLERK_WEBHOOK_SIGNING_SECRET", {
-      status: 500,
-    });
-  }
-
-  const headerPayload = await headers();
-
-  const svix_id = headerPayload.get("svix-id");
-  const svix_timestamp = headerPayload.get("svix-timestamp");
-  const svix_signature = headerPayload.get("svix-signature");
-
-  if (!svix_id || !svix_timestamp || !svix_signature) {
-    return new Response("Missing Svix headers", { status: 400 });
-  }
-
-  const body = await req.text();
-  const wh = new Webhook(WEBHOOK_SECRET);
-
-  let evt: WebhookEvent;
-
-  try {
-    evt = wh.verify(body, {
-      "svix-id": svix_id,
-      "svix-timestamp": svix_timestamp,
-      "svix-signature": svix_signature,
-    }) as WebhookEvent;
-  } catch (err) {
-    console.error("Error verifying webhook:", err);
-    return new Response("Webhook verification failed", { status: 400 });
-  }
-
-  const eventType = evt.type;
-
-  try {
-    if (eventType === "user.created") {
-      const {
-        id,
-        email_addresses,
-        image_url,
-        first_name,
-        last_name,
-        username,
-      } = evt.data;
-
-      const email = email_addresses[0]?.email_address;
-
-      if (!email) {
-        return new Response("Email not found", { status: 400 });
-      }
-
-      const user = {
-        clerkId: id,
-        email,
-        username: username ?? email.split("@")[0],
-        firstName: first_name ?? "",
-        lastName: last_name ?? "",
-        photo: image_url ?? "",
-      };
-
-      const newUser = await createUser(user);
-
-      if (newUser) {
-        const clerk = await clerkClient();
-
-        await clerk.users.updateUserMetadata(id, {
-          publicMetadata: {
-            userId: newUser._id.toString(),
-          },
-        });
-      }
-
-      return NextResponse.json({ message: "OK", user: newUser });
+  return identityResponse(async () => {
+    const secret = process.env.CLERK_WEBHOOK_SIGNING_SECRET;
+    if (!secret) throw new Error("Clerk webhook signing secret is not configured");
+    const id = req.headers.get("svix-id");
+    const timestamp = req.headers.get("svix-timestamp");
+    const signature = req.headers.get("svix-signature");
+    if (!id || !timestamp || !signature) throw new IdentityError(400, "INVALID_SIGNATURE", "Webhook verification failed.");
+    const body = await readWebhookBody(req);
+    let verified: unknown;
+    try {
+      verified = new Webhook(secret).verify(body, { "svix-id": id, "svix-timestamp": timestamp, "svix-signature": signature });
+    } catch {
+      throw new IdentityError(400, "INVALID_SIGNATURE", "Webhook verification failed.");
     }
-
-    if (eventType === "user.updated") {
-      const { id, image_url, first_name, last_name, username } = evt.data;
-
-      const user = {
-        firstName: first_name ?? "",
-        lastName: last_name ?? "",
-        username: username ?? "",
-        photo: image_url ?? "",
-      };
-
-      const updatedUser = await updateUser(id, user);
-
-      return NextResponse.json({ message: "OK", user: updatedUser });
+    const event = envelopeSchema.parse(verified);
+    if (event.type === "user.created" || event.type === "user.updated") {
+      await synchronizeClerkProfile(event.data);
+    } else if (event.type === "user.deleted") {
+      const deletion = deletionSchema.parse(verified);
+      await deleteClerkIdentity(deletion.data.id, deletion.timestamp);
     }
-
-    if (eventType === "user.deleted") {
-      const { id } = evt.data;
-
-      if (!id) {
-        return new Response("User id not found", { status: 400 });
-      }
-
-      const deletedUser = await deleteUser(id);
-
-      return NextResponse.json({ message: "OK", user: deletedUser });
-    }
-
-    return NextResponse.json({ message: "Webhook received" });
-  } catch (error: unknown) {
-    console.error("Webhook handler error:", error);
-
-    return new Response(`Webhook handler failed: ${(error as Error).message}`, {
-      status: 500,
-    });
-  }
+    return { received: true };
+  });
 }
-
-
-

@@ -68,7 +68,7 @@ export default function CartClient() {
     return <p className="p-12">Loading cart...</p>;
   }
 
-  if (error) return <p role="alert" className="p-12">{error} <button onClick={() => window.location.reload()}>Retry</button></p>;
+  if (error) return <><CartSyncStatus /><p role="alert" className="p-12">{error} <button onClick={() => window.location.reload()}>Retry</button></p></>;
 
   if (optimisticProducts.length === 0) {
     return <div><CartSyncStatus /><p className="p-12">Your cart is empty.</p></div>;
