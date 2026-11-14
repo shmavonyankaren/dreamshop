@@ -8,6 +8,55 @@ const service = f => f.load("@/lib/server/store-service");
 const products = f => f.load("@/lib/server/merchant-products");
 const images = f => f.load("@/lib/server/store-images");
 const rejects = async (promise, status) => assert.rejects(promise, e => e.status === status);
+
+function pageNodes(node) {
+  if (Array.isArray(node)) return node.flatMap(pageNodes);
+  if (!node || typeof node !== "object") return [];
+  return [node, ...pageNodes(node.props?.children)];
+}
+function pageText(node) {
+  if (Array.isArray(node)) return node.map(pageText).join(" ");
+  if (typeof node === "string" || typeof node === "number") return String(node);
+  return node && typeof node === "object" ? pageText(node.props?.children) : "";
+}
+for (const admin of [false, true]) for (const status of ["none", "pending", "rejected", "suspended", "approved"]) {
+  test(`/sell presents ${admin ? "Super Admin" : "customer"} with ${status} merchant status without changing access`, async () => {
+    const f = fixture(); Object.assign(f.state.users.get(A), { superAdmin: admin, merchantStatus: status });
+    const before = JSON.stringify([...f.state.users]);
+    const tree = await f.load("@/app/(root)/sell/page").default(), nodes = pageNodes(tree);
+    const hasLink = href => nodes.some(n => n.props?.href === href);
+    assert.equal(nodes.some(n => n.props?.mode === "application"), !admin && status === "none");
+    assert.equal(nodes.some(n => n.props?.mode === "setup"), status === "approved");
+    assert.equal(hasLink("/admin/merchants"), admin && status !== "approved");
+    assert.equal(hasLink("/contact"), ["rejected", "suspended"].includes(status));
+    assert(hasLink("/all-products")); assert(!hasLink("/merchant"));
+    assert(pageText(tree).includes(status === "none" ? "Not applied" : status));
+    if (admin && status !== "approved") assert(pageText(tree).includes("does not automatically give you a store"));
+    assert.equal(JSON.stringify([...f.state.users]), before); assert.equal(f.state.audits.length, 0);
+    await f.load("@/lib/server/authorization").requireCapability("customer:access");
+    if (status !== "approved") await rejects(service(f).createStore(setup), 403);
+  });
+}
+for (const admin of [false, true]) test(`/sell preserves ${admin ? "combined admin/merchant" : "merchant"} owned-workspace access`, async () => {
+  const f = fixture(); f.merchant(); if (admin) f.admin();
+  const nodes = pageNodes(await f.load("@/app/(root)/sell/page").default());
+  assert(nodes.some(n => n.props?.href === "/merchant")); assert(!nodes.some(n => n.props?.mode));
+  assert.equal((await service(f).ownedStore(await f.load("@/lib/server/authorization").requireCapability("merchant:access"))).owner, A);
+});
+test("/sell shows support for a suspended store without offering blocked workspace management", async () => {
+  const f = fixture(); f.merchant(); f.state.stores.get(A).status = "suspended";
+  const tree = await f.load("@/app/(root)/sell/page").default(), nodes = pageNodes(tree);
+  assert(pageText(tree).includes("Your store is suspended")); assert(nodes.some(n => n.props?.href === "/contact"));
+  assert(nodes.some(n => n.props?.href === "/all-products")); assert(!nodes.some(n => n.props?.href === "/merchant"));
+});
+for (const flag of ["status", "applicationStatus"]) test(`/sell rejects inactive ${flag} even for Super Admin`, async () => {
+  const f = fixture(); f.admin(); f.state.users.get(A)[flag] = "suspended";
+  await rejects(f.load("@/app/(root)/sell/page").default(), 403);
+});
+test("/sell retains unauthenticated and missing-identity checks", async () => {
+  const f = fixture(); f.state.clerkId = null; await rejects(f.load("@/app/(root)/sell/page").default(), 401);
+  f.state.clerkId = "clerk-missing"; await rejects(f.load("@/app/(root)/sell/page").default(), 409);
+});
 test("merchant application records private details and pending state without creating a store", async () => {
   const f = fixture(); await service(f).submitApplication(application);
   assert.equal(f.state.users.get(A).merchantStatus, "pending"); assert.equal(f.state.applications.get(A).contactEmail, application.contactEmail); assert.equal(f.state.stores.size, 0); assert.equal(f.state.audits.length, 1);

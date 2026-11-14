@@ -10,7 +10,7 @@ import { applicationSchema, storeSetupSchema, storeSettingsSchema, type StoreDTO
 import type { InternalUserDTO } from "../identity-contract";
 import { requireAuthenticatedUser } from "./authenticated-user";
 import { authorizedMutation } from "./marketplace-transaction";
-import { requireCapability } from "./authorization";
+import { hasCapability, requireCapability } from "./authorization";
 import { productIdSchema } from "../cart-contract";
 
 // Server-only reviewer read; no public application listing or applicant-selected approval.
@@ -43,7 +43,7 @@ export async function merchantOnboarding() {
   const actor = await requireAuthenticatedUser();
   const application = await Application.findById(actor.id);
   const store = await Store.findOne({ owner: actor.id });
-  return { status: actor.merchantStatus, application: application ? { name: application.name, description: application.description, contactEmail: application.contactEmail } : null, store: store ? storeDTO(store) : null };
+  return { status: actor.merchantStatus, canManageMerchants: hasCapability(actor, "merchant:approve"), application: application ? { name: application.name, description: application.description, contactEmail: application.contactEmail } : null, store: store ? storeDTO(store) : null };
 }
 export async function submitApplication(input: unknown) {
   return authorizedMutation("customer:access", async (actor, session) => {
