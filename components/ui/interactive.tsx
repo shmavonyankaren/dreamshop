@@ -5,11 +5,11 @@ import { X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { IconButton } from "./foundation";
 
-export function Dialog({ trigger, title, description, children, open, onOpenChange, onCloseAutoFocus, drawer = false }: { trigger: ReactNode; title: string; description?: string; children: ReactNode; open?: boolean; onOpenChange?: (open: boolean) => void; onCloseAutoFocus?: ComponentProps<typeof Primitive.Content>["onCloseAutoFocus"]; drawer?: boolean }) {
+export function Dialog({ trigger, title, description, children, open, onOpenChange, drawer = false }: { trigger: ReactNode; title: string; description?: string; children: ReactNode; open?: boolean; onOpenChange?: (open: boolean) => void; drawer?: boolean }) {
   const descriptionId = useId();
   return <Primitive.Root open={open} onOpenChange={onOpenChange}><Primitive.Trigger asChild>{trigger}</Primitive.Trigger><Primitive.Portal>
     <Primitive.Overlay className="fixed inset-0 z-60 bg-black/60 backdrop-blur-sm" />
-    <Primitive.Content onCloseAutoFocus={onCloseAutoFocus} aria-describedby={description ? descriptionId : undefined} className={cn("fixed z-70 overflow-y-auto bg-card p-6 text-card-foreground shadow-panel", drawer ? "inset-y-0 right-0 w-[min(90vw,22rem)] border-l border-border" : "left-1/2 top-1/2 max-h-[85dvh] w-[min(92vw,32rem)] -translate-x-1/2 -translate-y-1/2 rounded-2xl border border-border")}>
+    <Primitive.Content aria-describedby={description ? descriptionId : undefined} className={cn("fixed z-70 overflow-y-auto bg-card p-6 text-card-foreground shadow-panel", drawer ? "inset-y-0 right-0 w-[min(90vw,22rem)] border-l border-border" : "left-1/2 top-1/2 max-h-[85dvh] w-[min(92vw,32rem)] -translate-x-1/2 -translate-y-1/2 rounded-2xl border border-border")}>
       <div className="mb-6 flex items-start justify-between gap-4"><div><Primitive.Title className="text-xl font-bold">{title}</Primitive.Title>{description && <Primitive.Description id={descriptionId} className="mt-2 text-sm text-muted-foreground">{description}</Primitive.Description>}</div><Primitive.Close asChild><IconButton label="Close dialog"><X aria-hidden="true" /></IconButton></Primitive.Close></div>{children}
     </Primitive.Content></Primitive.Portal></Primitive.Root>;
 }
