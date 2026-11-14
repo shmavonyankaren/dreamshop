@@ -11,7 +11,8 @@
     "test:identity": "node --test tests/identity.test.cjs",
     "test:authorization": "node --test tests/authorization.test.cjs",
     "test:storefront": "node --test tests/storefront.test.cjs",
-    "test:customer": "node --test tests/customer.test.cjs"
+    "test:customer": "node --test tests/customer.test.cjs",
+    "test:ui": "node --test tests/ui-consistency.test.cjs"
   },
   "dependencies": {
     "@clerk/nextjs": "^7.0.1",
