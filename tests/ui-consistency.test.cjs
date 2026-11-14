@@ -19,14 +19,14 @@ function themeHarness() {
   return {value,storage,applied,media};
 }
 function fixture(signedIn=false) {
-  const theme=themeHarness(), state={signedIn,count:3,path:"/faq",mobileClosed:false};
+  const theme=themeHarness(), state={signedIn,count:3,path:"/faq",mobileClosed:false,userId:"clerk-a",loaded:true};
   const UserButton=({children})=>React.createElement("div",null,React.createElement("button",{"aria-label":"Account menu","data-avatar":true},"Avatar"),children);
   UserButton.MenuItems=({children})=>React.createElement("nav",{"aria-label":"Account menu items"},children);
   UserButton.Link=({href,label})=>React.createElement("a",{href},label);
   UserButton.Action=({label})=>React.createElement("button",{"data-clerk-action":label},label);
   const wrap=({children})=>React.createElement(React.Fragment,null,children);
   const mocks={
-    "@clerk/nextjs":{Show:({when,children})=>(when==="signed-in")===state.signedIn?children:null,SignInButton:({children})=>React.createElement("div",{"data-sign-in-flow":true},children),UserButton},
+    "@clerk/nextjs":{useUser:()=>({user:{id:state.userId},isLoaded:state.loaded,isSignedIn:state.signedIn}),Show:({when,children})=>(when==="signed-in")===state.signedIn?children:null,SignInButton:({children})=>React.createElement("div",{"data-sign-in-flow":true},children),UserButton},
     "next/link":{default:({children,...props})=>React.createElement("a",props,children)},
     "next/navigation":{usePathname:()=>state.path},
     "next-themes":{useTheme:()=>theme.value()},
@@ -60,6 +60,65 @@ test("signed-out header has one account entry and preserves wishlist/cart",()=>{
 test("signed-in header has one avatar and account/profile/sign-out menu actions",()=>{const f=fixture(true);const html=renderToStaticMarkup(React.createElement(f.load("@/components/shared/Header").default));assert.equal((html.match(/data-avatar="true"/g)||[]).length,1);assert.equal((html.match(/href="\/account"/g)||[]).length,1);assert(html.includes('data-clerk-action="manageAccount"'));assert(html.includes('data-clerk-action="signOut"'));assert(!html.includes("Sign in to your account"));});
 test("mobile drawer retains navigation and theme but does not duplicate account controls",()=>{const f=fixture(true);const html=renderToStaticMarkup(React.createElement(f.load("@/components/shared/Header").default));assert(html.includes('data-mobile-drawer="Explore Dreamshop"'));assert(html.includes('aria-label="Open navigation"'));assert(html.includes('href="/faq"'));assert.equal((html.match(/data-avatar="true"/g)||[]).length,1);assert(html.includes('aria-label="Choose color theme"'));});
 test("mobile navigation invokes close callback and recognizes active route",()=>{const f=fixture();const Navigation=f.load("@/components/shared/NavigationMenu").default;const tree=Navigation({onNavigate:()=>{f.state.mobileClosed=true;}});const link=findElement(tree,e=>e.props?.href==="/faq");assert.equal(link.props["aria-current"],"page");link.props.onClick();assert.equal(f.state.mobileClosed,true);});
+
+const { fixture: serverFixture, A } = require("./helpers/marketplace-fixture.cjs");
+for (const [name, user, merchant, admin] of [
+  ["customer", {}, false, false],
+  ["approved merchant", { merchantStatus: "approved" }, true, false],
+  ["pending merchant", { merchantStatus: "pending" }, false, false],
+  ["rejected merchant", { merchantStatus: "rejected" }, false, false],
+  ["suspended merchant", { merchantStatus: "suspended" }, false, false],
+  ["inactive merchant account", { merchantStatus: "approved", applicationStatus: "suspended" }, false, false],
+  ["inactive identity", { superAdmin: true, status: "suspended" }, false, false],
+  ["Super Admin", { superAdmin: true }, false, true],
+  ["Super Admin and merchant", { superAdmin: true, merchantStatus: "approved" }, true, true],
+]) test(name + " receives authoritative workspace links in the single desktop/mobile account menu", async () => {
+  const server = serverFixture(); Object.assign(server.state.users.get(A), user);
+  const navigation = await server.load("@/lib/server/account-navigation").resolveAccountNavigation();
+  if (navigation) assert.deepEqual(Object.keys(navigation).sort(), ["adminDashboard", "clerkId", "merchantDashboard"]);
+  const f = fixture(true), AuthHeader = f.load("@/components/shared/AuthHeader").default;
+  const html = renderToStaticMarkup(React.createElement(f.load("@/components/shared/Header").default, { accountControl: React.createElement(AuthHeader, { navigation }) }));
+  assert.equal(html.includes('href="/merchant"'), merchant); assert.equal(html.includes('href="/admin"'), admin);
+  assert(html.includes("My Account")); assert(html.includes("My Favorites"));
+  assert.equal((html.match(/data-avatar="true"/g)||[]).length, 1);
+  assert.equal((html.match(/data-clerk-action="manageAccount"/g)||[]).length, 1);
+  assert.equal((html.match(/data-clerk-action="signOut"/g)||[]).length, 1);
+  assert(html.includes('data-mobile-drawer="Explore Dreamshop"'));
+  const auth = server.load("@/lib/server/authorization");
+  if (!admin) await assert.rejects(auth.requireRouteAccess("admin"), e => e.status === 403);
+  if (!merchant && !admin) await assert.rejects(auth.requireRouteAccess("merchant"), e => e.status === 403);
+});
+
+test("guest, missing identity and database outage return no privileged navigation", async () => {
+  for (const scenario of ["guest", "missing", "outage"]) {
+    const f = serverFixture();
+    if (scenario === "guest") f.state.clerkId = null;
+    if (scenario === "missing") f.state.users.clear();
+    if (scenario === "outage") f.state.users.values = () => { throw new Error("Database unavailable"); };
+    assert.equal(await f.load("@/lib/server/account-navigation").resolveAccountNavigation(), null);
+  }
+});
+
+test("loading and changed Clerk sessions suppress stale privileged links", () => {
+  const f = fixture(true), AuthHeader = f.load("@/components/shared/AuthHeader").default;
+  for (const [loaded, userId] of [[false, "clerk-a"], [true, "clerk-b"]]) {
+    Object.assign(f.state, { loaded, userId });
+    const html = renderToStaticMarkup(React.createElement(AuthHeader, { navigation: { clerkId: "clerk-a", merchantDashboard: true, adminDashboard: true } }));
+    assert(!html.includes('href="/admin"')); assert(!html.includes('href="/merchant"')); assert(html.includes('data-clerk-action="signOut"'));
+  }
+});
+
+test("streamed server account control passes the authoritative projection to Clerk menu", async () => {
+  const f = serverFixture(); f.admin();
+  const element = await f.load("@/components/shared/WorkspaceAccountMenu").WorkspaceAccountMenu();
+  assert.deepEqual(element.props.navigation, { clerkId: "clerk-a", merchantDashboard: false, adminDashboard: true });
+});
+
+test("navigation preserves Next dynamic-rendering control flow", async () => {
+  const f = serverFixture(); const signal = Object.assign(new Error("Dynamic rendering"), { digest: "DYNAMIC_SERVER_USAGE" });
+  f.state.users.values = () => { throw signal; };
+  await assert.rejects(f.load("@/lib/server/account-navigation").resolveAccountNavigation(), error => error === signal);
+});
 test("cart badge retains full accessible count and capped visual count",()=>{const f=fixture();f.state.count=123;const html=renderToStaticMarkup(React.createElement(f.load("@/components/products/ShoppingCart").default));assert(html.includes("Shopping cart, 123 items"));assert(html.includes("99+"));});
 test("theme menu delegates Light, Dark and System to real next-themes persistence",()=>{const f=fixture();const Toggle=f.load("@/components/shared/ModeToggle").ModeToggle;for(const value of ["light","dark","system"]){const tree=Toggle();const group=findElement(tree,e=>typeof e.props?.onValueChange==="function");group.props.onValueChange(value);assert.equal(f.theme.storage.get("theme"),value);assert.equal(f.theme.value().theme,value);assert(f.theme.applied.has(value==="system"?"dark":value));}});
 test("theme preference survives provider recreation and System follows device preference",()=>{const f=fixture();f.theme.value().setTheme("system");assert.equal(f.theme.value().theme,"system");assert.equal(f.theme.value().resolvedTheme,"dark");f.theme.media.matches=false;assert.equal(f.theme.value().resolvedTheme,"light");assert(f.theme.applied.has("light"));});
