@@ -3,7 +3,9 @@ import { useEffect, useOptimistic, useState, useTransition } from "react";
 import { useUser } from "@clerk/nextjs";
 import { useCart } from "@/components/CartContext";
 import CartSyncStatus from "@/components/cart/CartSyncStatus";
-import ProductList from "@/components/products/ProductList";
+import { CartPresentation } from "./CartPresentation";
+import { LoadingIndicator, ErrorFeedback } from "@/components/ui/foundation";
+import { Button } from "@/components/ui/button";
 import type { ProductDTO } from "@/lib/cart-contract";
 import { getLocalCart, mutateGuestCart } from "@/lib/utils/localCart";
 import { fetchCartByUser, fetchProductsByIds, removeProductFromUserCart, updateProductQuantity } from "@/lib/utils/cartClient";
@@ -13,7 +15,7 @@ export default function CartClient() {
   const [cartProducts, setCartProducts] = useState<CartProduct[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [, startTransition] = useTransition();
+  const [pending, startTransition] = useTransition();
   const { user, isSignedIn, isLoaded } = useUser();
   const { setCartItemsCount, refreshVersion } = useCart();
   const [optimisticProducts, updateOptimisticProducts] = useOptimistic(cartProducts, (state, action: Action) =>
@@ -65,22 +67,18 @@ export default function CartClient() {
   const handleQuantityChange = (id: string | number, quantity: number) => mutate(id, quantity);
   const handleRemove = (id: string | number) => mutate(id);
   if (loading) {
-    return <p className="p-12">Loading cart...</p>;
+    return <LoadingIndicator label="Loading your cart…" />;
   }
 
-  if (error) return <><CartSyncStatus /><p role="alert" className="p-12">{error} <button onClick={() => window.location.reload()}>Retry</button></p></>;
-
-  if (optimisticProducts.length === 0) {
-    return <div><CartSyncStatus /><p className="p-12">Your cart is empty.</p></div>;
-  }
+  if (error) return <><CartSyncStatus /><ErrorFeedback action={<Button onClick={() => window.location.reload()}>Retry</Button>}>{error}</ErrorFeedback></>;
 
   return (
     <>
     <CartSyncStatus />
-    <div className="grow flex justify-center items-center p-12">
-      <ProductList
+    <div className="mt-5">
+      <CartPresentation
         products={optimisticProducts}
-        isCartView
+        pending={pending}
         onQuantityChange={handleQuantityChange}
         onRemove={handleRemove}
       />

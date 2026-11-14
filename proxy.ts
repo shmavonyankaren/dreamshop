@@ -31,6 +31,7 @@ export default clerkMiddleware(async (auth, req) => {
 export const config = {
   matcher: [
     "/api/cart(.*)",
+    "/api/wishlist",
     "/api/identity/sync",
     // Establish API auth context; services enforce access.
     "/((?!_next|api|trpc|[^?]*\\.(?:html?|css|js(?!on)|jpe?g|webp|png|gif|svg|ttf|woff2?|ico|csv|docx?|xlsx?|zip|webmanifest)).*)",

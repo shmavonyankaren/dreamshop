@@ -279,7 +279,27 @@ test("real Mongoose schema accepts minimal identities and declares only the Cler
   const loaded = { exports: {} }; new vm.Script("(function(require,module,exports){" + output + "\n})").runInThisContext()(require, loaded, loaded.exports);
   const Model = loaded.exports.default, record = new Model({ clerkId: "user_a" });
   assert.equal(record.validateSync(), undefined); assert.equal(record.email, null); assert.equal(record.username, null);
+  assert.equal(record.superAdmin, false); assert.equal(record.merchantStatus, "none"); assert.equal(record.applicationStatus, "active");
   assert.equal(Model.schema.options.autoIndex, false);
   assert.deepEqual(Model.schema.indexes().map(([keys, options]) => [keys, options.unique]), [[{ clerkId: 1 }, true]]);
   mongoose.deleteModel("User");
+});
+
+test("Clerk profile metadata cannot grant application privileges", async () => {
+  const f = fixture();
+  await f.webhook("user.created", profile({ superAdmin: true, merchantStatus: "approved", applicationStatus: "active",
+    public_metadata: { superAdmin: true, role: "superAdmin" }, unsafe_metadata: { merchantStatus: "approved" } }));
+  const user = await f.service().findIdentity("user_a");
+  assert.equal(user.superAdmin, false); assert.equal(user.merchantStatus, "none");
+});
+test("webhooks, duplicates, older events and authenticated recovery preserve application policy", async () => {
+  const f = fixture(); await f.webhook("user.created", profile());
+  const stored = f.state.users.get("user_a");
+  Object.assign(stored, { superAdmin: true, merchantStatus: "approved", applicationStatus: "suspended" });
+  const update = profile({ updated_at: 4000, first_name: "New", public_metadata: { applicationStatus: "active", superAdmin: false } });
+  await f.webhook("user.updated", update); await f.webhook("user.updated", update); await f.webhook("user.created", profile());
+  f.state.live = profile({ updated_at: 5000 }); assert.equal((await f.recover()).status, 403);
+  const current = await f.service().findIdentity("user_a");
+  assert.equal(current.superAdmin, true); assert.equal(current.merchantStatus, "approved"); assert.equal(current.applicationStatus, "suspended");
+  assert.deepEqual(f.service().toPublicUser(current), { displayName: "Ada", avatar: null });
 });

@@ -8,8 +8,8 @@ import ProductList from "./ProductList";
 import { ProductType } from "@/lib/types";
 import { getLocalCart, mutateGuestCart } from "@/lib/utils/localCart";
 import { addProductToUserCart, fetchCartByUser, removeProductFromUserCart, updateProductQuantity } from "@/lib/utils/cartClient";
-export default function ProductsClient({ products }: { products: ProductType[] }) {
-  const [searchQuery, setSearchQuery] = useState("");
+export default function ProductsClient({ products, initialSearch = "" }: { products: ProductType[]; initialSearch?: string }) {
+  const [searchQuery, setSearchQuery] = useState(initialSearch);
   const [category, setCategory] = useState("all");
   const [error, setError] = useState<string | null>(null);
   const { setCartItemsCount, refreshVersion } = useCart();

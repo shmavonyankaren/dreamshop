@@ -13,7 +13,7 @@ export default function SignUpPage() {
             Join our community
           </h1>
           <p className="text-xs sm:text-sm text-body-secondary">
-            Create an account to start sharing your stories
+            Create your Dreamshop account
           </p>
         </div>
 

@@ -39,7 +39,7 @@ function fixture(shared = {}) {
   const mocks = {
     "@clerk/nextjs/server": { auth: async () => ({ userId: state.clerkId }) },
     "lib/db/connection.ts": { connectDB: async () => {} },
-    "lib/db/models/user.model.ts": { default: { findOne(filter) { assert.equal(filter.clerkId, state.clerkId); return query(() => state.mapped ? { _id: state.clerkId === "clerk-b" ? B : A, status: state.accountStatus } : null); } } },
+    "lib/db/models/user.model.ts": { default: { findOne(filter) { assert.equal(filter.clerkId, state.clerkId); return query(() => state.mapped ? { _id: state.clerkId === "clerk-b" ? B : A, status: state.accountStatus, applicationStatus: state.applicationStatus, merchantStatus: state.merchantStatus, superAdmin: state.superAdmin } : null); } } },
     "lib/db/models/cart.model.ts": { default: cartModel },
     "lib/db/models/product.model.ts": { default: {
       find(filter) { return query(() => [...state.products.values()].filter((product) => !filter?._id || filter._id.$in.includes(product._id))); },
@@ -207,6 +207,18 @@ test("a second authenticated identity resolves its own MongoDB account", async (
 });
 
 const uuid = () => require("node:crypto").randomUUID();
+test("application suspension denies cart access even with merchant and admin privileges", async () => {
+  const f = fixture(); f.state.applicationStatus = "suspended"; f.state.merchantStatus = "approved"; f.state.superAdmin = true;
+  for (const [route, body] of Object.entries(payloads)) assert.equal((await f.call(route, body)).status, 403);
+  assert.equal(f.state.carts.size, 0);
+});
+test("approved merchants and Super Admins retain normal customer cart functionality", async () => {
+  const f = fixture(); f.state.merchantStatus = "approved";
+  assert.equal((await f.call("add", payloads.add)).status, 200);
+  f.state.merchantStatus = "none"; f.state.superAdmin = true;
+  assert.equal((await f.call("merge", { operationId: uuid(), items: [payloads.add] })).status, 200);
+  assert.equal(f.state.carts.get(A).items[0].quantity, 2);
+});
 for (const status of ["suspended", "deleted"]) test(status + " identities cannot read or mutate carts and retain receipts", async () => {
   const f = fixture(); await f.call("merge", { operationId: uuid(), items: [payloads.add] });
   const before = structuredClone(f.state.carts.get(A)); f.state.accountStatus = status;
@@ -377,6 +389,21 @@ for (const edit of ["add", "update", "remove"]) test("guest " + edit + " during 
   assert.equal(cart.mergeReceipts.length, 2);
   assert.deepEqual(local.getLocalCart(), []);
 });
+test("storefront quantity addition during an in-flight merge is applied exactly once", async () => {
+  const f = fixture(); let release, intercepted = false;
+  connectBrowser(f, async (_route, _body, send) => { const response = await send(); if (!intercepted) { intercepted = true; await new Promise(resolve => { release = resolve; }); } return response; });
+  const local = f.load("@/lib/utils/localCart.ts"), client = f.load("@/lib/utils/cartClient.ts");
+  local.addToLocalCart(P);
+  const sync = client.ensureGuestCartMerged("clerk-a"); await until(() => release);
+  await local.addGuestCartQuantity(P, 3);
+  release(); await sync;
+  assert.equal(f.state.carts.get(A).items[0].quantity, 4);
+  assert.equal(f.state.carts.get(A).mergeReceipts.length, 2);
+  await client.ensureGuestCartMerged("clerk-a");
+  assert.equal(f.state.carts.get(A).items[0].quantity, 4);
+  assert.deepEqual(local.getLocalCart(), []);
+});
+
 test("sign-out retains pending acknowledgement for the original account", async () => {
   const f = fixture(); let release;
   connectBrowser(f, async (_route, _body, send) => { const response = await send(); await new Promise((resolve) => { release = resolve; }); return response; });

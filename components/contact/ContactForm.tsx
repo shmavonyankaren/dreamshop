@@ -1,170 +1,29 @@
 "use client";
-
-import { useState, useEffect } from "react";
+import { useRef, useState } from "react";
+import { Mail, Send } from "lucide-react";
 import { sendContactForm } from "@/lib/actions/user.actions";
-
+import { Button } from "@/components/ui/button";
+import { Input, Textarea } from "@/components/ui/foundation";
 export default function ContactForm() {
-  const [status, setStatus] = useState<
-    null | "idle" | "sending" | "success" | "error"
-  >("idle");
-  const [errorMsg, setErrorMsg] = useState<string | null>(null);
-  const [bannerVisible, setBannerVisible] = useState(false);
-
-  useEffect(() => {
-    // Fade banner out then clear status when success
-    if (status === "success") {
-      const fadeTimer = setTimeout(() => setBannerVisible(false), 4500);
-      const clearTimer = setTimeout(() => setStatus("idle"), 5000);
-      return () => {
-        clearTimeout(fadeTimer);
-        clearTimeout(clearTimer);
-      };
-    }
-    return;
-  }, [status]);
-
-  async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
-    e.preventDefault();
-    setStatus("sending");
-    setErrorMsg(null);
-
-    const form = e.currentTarget;
-    const formData = new FormData(form);
-
-    try {
-      // Use server action directly (no API route)
-      await sendContactForm(formData);
-      setStatus("success");
-      setBannerVisible(true);
-      form.reset();
-    } catch (err) {
-      console.error(err);
-      setStatus("error");
-      const msg = err instanceof Error ? err.message : String(err);
-      setErrorMsg(msg || "Unable to send message.");
-    }
+  const [status,setStatus] = useState<'idle'|'sending'|'success'|'error'>('idle');
+  const locked = useRef(false);
+  async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault(); if(locked.current) return;
+    locked.current = true; setStatus('sending');
+    const form = event.currentTarget;
+    try { await sendContactForm(new FormData(form)); setStatus('success'); form.reset(); }
+    catch { setStatus('error'); }
+    finally { locked.current = false; }
   }
-
-  return (
-    <div className="bg-surface rounded-2xl shadow-xl p-6 sm:p-8 md:p-10 border border-edge transition-colors duration-300">
-      <h2 className="text-2xl sm:text-3xl font-bold text-body-primary mb-4 sm:mb-6 transition-colors duration-300">
-        Send us a Message
-      </h2>
-      {status === "success" && (
-        <div
-          role="status"
-          className={`mb-4 p-3 rounded-lg bg-ok-bg border border-ok-edge text-ok-fg transition-all duration-500 ${
-            bannerVisible
-              ? "opacity-100 translate-y-0"
-              : "opacity-0 -translate-y-2"
-          }`}
-        >
-          Your message has been sent — we will get back to you shortly.
-        </div>
-      )}
-      {status === "error" && (
-        <div
-          role="alert"
-          className="mb-4 p-3 rounded-lg bg-err-bg border border-err-edge text-err-fg"
-        >
-          {errorMsg || "Failed to send message. Please try again."}
-        </div>
-      )}
-
-      <form className="space-y-6" onSubmit={handleSubmit}>
-        {/* Name Field */}
-        <div>
-          <label
-            htmlFor="name"
-            className="block text-sm font-semibold text-body-tertiary mb-2 transition-colors duration-300"
-          >
-            Full Name
-          </label>
-          <input
-            type="text"
-            id="name"
-            name="name"
-            className="w-full px-4 py-3 border border-edge-strong rounded-xl bg-surface text-body-primary placeholder-body-secondary focus:ring-2 focus:ring-brand focus:border-brand transition-colors duration-300"
-            placeholder="John Doe"
-            required
-          />
-        </div>
-
-        {/* Email Field */}
-        <div>
-          <label
-            htmlFor="email"
-            className="block text-sm font-semibold text-body-tertiary mb-2 transition-colors duration-300"
-          >
-            Email Address
-          </label>
-          <input
-            type="email"
-            id="email"
-            name="email"
-            className="w-full px-4 py-3 border border-edge-strong rounded-xl bg-surface text-body-primary placeholder-body-secondary focus:ring-2 focus:ring-brand focus:border-brand transition-colors duration-300"
-            placeholder="john@example.com"
-            required
-          />
-        </div>
-
-        {/* Subject Field */}
-        <div>
-          <label
-            htmlFor="subject"
-            className="block text-sm font-semibold text-body-tertiary mb-2 transition-colors duration-300"
-          >
-            Subject
-          </label>
-          <input
-            type="text"
-            id="subject"
-            name="subject"
-            className="w-full px-4 py-3 border border-edge-strong rounded-xl bg-surface text-body-primary placeholder-body-secondary focus:ring-2 focus:ring-brand focus:border-brand transition-colors duration-300"
-            placeholder="How can we help?"
-            required
-          />
-        </div>
-
-        {/* Message Field */}
-        <div>
-          <label
-            htmlFor="message"
-            className="block text-sm font-semibold text-body-tertiary mb-2 transition-colors duration-300"
-          >
-            Message
-          </label>
-          <textarea
-            id="message"
-            name="message"
-            rows={6}
-            className="w-full px-4 py-3 border border-edge-strong rounded-xl bg-surface text-body-primary placeholder-body-secondary focus:ring-2 focus:ring-brand focus:border-brand transition-colors duration-300 resize-none"
-            placeholder="Tell us more about your inquiry..."
-            required
-          ></textarea>
-        </div>
-
-        {/* Submit Button */}
-        <button
-          type="submit"
-          className=" cursor-pointer w-full bg-linear-to-r from-brand to-accent-ds text-white font-semibold py-3 sm:py-4 px-4 sm:px-6 rounded-xl hover:shadow-lg transition-all flex items-center justify-center gap-2 group"
-        >
-          Send Message
-          <svg
-            className="w-5 h-5 group-hover:translate-x-1 transition-transform"
-            fill="none"
-            stroke="currentColor"
-            viewBox="0 0 24 24"
-          >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth={2}
-              d="M14 5l7 7m0 0l-7 7m7-7H3"
-            />
-          </svg>
-        </button>
-      </form>
-    </div>
-  );
+  return <section className="ds-panel contact-form"><div className="mb-5 flex items-center gap-3"><span className="marketing-icon"><Mail aria-hidden="true" /></span><div><h2>Send Us a Message</h2><p className="mt-1 text-sm text-muted-foreground">Fill out the form below to get in touch.</p></div></div>
+    {status==='success' && <p role="status" className="mb-4 rounded-lg bg-ok-bg p-3 text-sm text-ok-fg">Your message has been submitted.</p>}
+    {status==='error' && <p role="alert" className="mb-4 rounded-lg bg-err-bg p-3 text-sm text-err-fg">We could not submit your message. Please try again or use email.</p>}
+    <form onSubmit={handleSubmit} className="contact-form-grid" aria-busy={status==='sending'}>
+      <div><label htmlFor="contact-name">Name <span className="text-primary">*</span></label><Input id="contact-name" name="name" autoComplete="name" placeholder="Enter your full name" required /></div>
+      <div><label htmlFor="contact-email">Email <span className="text-primary">*</span></label><Input id="contact-email" name="email" type="email" autoComplete="email" placeholder="Enter your email address" required /></div>
+      <div className="sm:col-span-2"><label htmlFor="contact-subject">Subject <span className="text-primary">*</span></label><Input id="contact-subject" name="subject" placeholder="How can we help?" required /></div>
+      <div className="sm:col-span-2"><label htmlFor="contact-message">Message <span className="text-primary">*</span></label><Textarea id="contact-message" name="message" placeholder="Tell us how we can help?" rows={6} required /></div>
+      <Button type="submit" disabled={status==='sending'} className="sm:col-span-2"><Send aria-hidden="true" />{status==='sending'?'Submitting?':'Submit Message'}</Button>
+    </form>
+  </section>;
 }

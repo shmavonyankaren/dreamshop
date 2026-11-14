@@ -1,3 +1,5 @@
+import type { ApplicationStatus, MerchantStatus } from "./authorization-contract";
+
 export type AccountStatus = "active" | "suspended" | "deleted";
 
 // Safe profile projection; never contains an email, identity key or sync metadata.
@@ -8,6 +10,9 @@ export type InternalUserDTO = PublicUserDTO & {
   email: string | null;
   username: string | null;
   status: AccountStatus;
+  applicationStatus: ApplicationStatus;
+  merchantStatus: MerchantStatus;
+  superAdmin: boolean;
   createdAt: string | null;
   updatedAt: string | null;
 };

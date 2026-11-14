@@ -11,11 +11,12 @@ function save(items: LocalCartItem[]) {
   return valid;
 }
 // Synchronous helpers are called inside mutateGuestCart by application callers.
-export function addToLocalCart(productId: string | number) {
+export function addToLocalCart(productId: string | number, quantity = 1) {
   const id = productIdSchema.parse(String(productId));
   const items = getLocalCart();
   const existing = items.find((item) => item.productId === id);
-  if (existing) existing.quantity++; else items.push({ productId: id, quantity: 1 });
+  cartItemSchema.parse({ productId: id, quantity });
+  if (existing) existing.quantity += quantity; else items.push({ productId: id, quantity });
   return save(items);
 }
 export function updateLocalCartItem(productId: string | number, quantity: number) {
@@ -34,6 +35,12 @@ export function clearLocalCart() {
 export async function mutateGuestCart(operation: "add" | "update" | "remove", productId: string, quantity = 1) {
   const items = await withGuestLock(() => operation === "add" ? addToLocalCart(productId)
     : operation === "remove" ? removeLocalCartItem(productId) : updateLocalCartItem(productId, quantity));
+  notifyCartChanged();
+  return items;
+}
+// Explicit quantity addition; preserve the legacy mutateGuestCart single-add contract.
+export async function addGuestCartQuantity(productId: string, quantity: number) {
+  const items = await withGuestLock(() => addToLocalCart(productId, quantity));
   notifyCartChanged();
   return items;
 }

@@ -1,20 +1,25 @@
-import React from "react";
-import AboutHero from "@/components/about/AboutHero";
-import MissionSection from "@/components/about/MissionSection";
-import FeaturesGrid from "@/components/about/FeaturesGrid";
-import ValuesSection from "@/components/about/ValuesSection";
-import CTASection from "@/components/about/CTASection";
-
+import Link from "next/link";
+import { Target, Rocket, ShoppingBag, Store, ShieldCheck, Layers, Search, ShoppingCart, HeartHandshake, Lightbulb, Users, ArrowRight, Package, UserRound } from "lucide-react";
+import { MarketingHero } from "@/components/shared/MarketingHero";
+import { MarketingCard } from "@/components/shared/MarketingCard";
+import { Button } from "@/components/ui/button";
+import { storefrontMetadata } from "@/lib/storefront-metadata";
+export const metadata = storefrontMetadata("About Dreamshop", "Discover the purpose and principles behind the Dreamshop marketplace.", "/about-us");
+const journey = [
+  ["01", "Discover", "Explore the catalog and browse categories."],
+  ["02", "Compare", "Read product descriptions, tags, and prices."],
+  ["03", "Collect", "Add your selected products to your cart."],
+  ["04", "Connect", "Sign in to synchronize your saved cart."],
+  ["05", "Keep exploring", "Return to discover new catalog additions."],
+];
 export default function AboutUs() {
-  return (
-    <div className="min-h-screen bg-linear-to-br from-gray-50 via-indigo-50 to-purple-50 dark:bg-linear-to-br dark:from-slate-950 dark:via-slate-900 dark:to-slate-950 py-8 sm:py-12 px-4 sm:px-6 lg:px-8 transition-colors duration-300">
-      <div className="max-w-7xl mx-auto">
-        <AboutHero />
-        <MissionSection />
-        <FeaturesGrid />
-        <ValuesSection />
-        <CTASection />
-      </div>
-    </div>
-  );
+  return <div className="ds-container marketing-page marketing-about">
+    <MarketingHero label="About Dreamshop" title={<>Dreamshop ? A Modern<br /><span className="text-primary">Multi-Vendor Marketplace</span></>} description="A place to discover products from independent merchants and explore new possibilities ? all in one place."><div className="mt-4 flex flex-wrap gap-3"><Button asChild><Link href="/all-products"><ShoppingCart />Shop Now</Link></Button><Button asChild variant="outline"><Link href="/contact"><Store />Merchant Enquiries</Link></Button></div><p className="mt-4 text-xs!">Product discovery ? Independent merchants ? Connected accounts</p></MarketingHero>
+    <div className="grid gap-3 md:grid-cols-2"><MarketingCard icon={Target} title="Our Mission">To make discovering products simpler and bring customers and independent merchants together in one marketplace.</MarketingCard><MarketingCard icon={Rocket} title="Our Vision">To build an accessible marketplace that helps people discover, connect, and grow.</MarketingCard></div>
+    <section className="grid gap-3 lg:grid-cols-[220px_1fr_1fr_1fr]"><div><h2>Platform Roles</h2><p className="mt-2 text-sm text-body-secondary">Three capabilities support the Dreamshop marketplace.</p></div><MarketingCard icon={UserRound} title="Customers">Browse products, explore categories, and manage a personal cart.</MarketingCard><MarketingCard icon={Store} title="Merchants">Approved merchants manage their own products within the shared marketplace.</MarketingCard><MarketingCard icon={ShieldCheck} title="Platform Administration">Protected internal tools support marketplace management. This is not a public signup role.</MarketingCard></section>
+    <section className="marketing-banner grid gap-5 sm:grid-cols-2 lg:grid-cols-5"><div><h2>Dreamshop<br />at a Glance</h2><p className="mt-1 text-xs">What you can explore today</p></div>{[[Search,"Product discovery"],[Layers,"Category browsing"],[ShoppingBag,"Personal carts"],[ShieldCheck,"Protected accounts"]].map(([Icon,label]) => { const Symbol = Icon as typeof Search; return <div key={String(label)} className="flex items-center gap-3"><Symbol className="size-8 shrink-0" aria-hidden="true" /><span className="font-semibold">{String(label)}</span></div>; })}</section>
+    <section className="grid gap-4 lg:grid-cols-[200px_minmax(0,1fr)]"><div><h2>Your Journey</h2><p className="mt-2 text-sm text-body-secondary">From the first discovery to a cart of possibilities.</p></div><div className="ds-panel marketing-journey">{journey.map(([number,title,text]) => <div key={number} className="marketing-step"><span>{number}</span><h3>{title}</h3><p>{text}</p></div>)}</div></section>
+    <section className="grid gap-4 lg:grid-cols-[200px_minmax(0,1fr)]"><div><h2>Our Values</h2><p className="mt-2 text-sm text-body-secondary">The principles guiding how we build Dreamshop.</p></div><div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4"><MarketingCard icon={ShieldCheck} title="Trust">Clear information and protected accounts.</MarketingCard><MarketingCard icon={HeartHandshake} title="Empowerment">Space for customers and independent merchants.</MarketingCard><MarketingCard icon={Lightbulb} title="Clarity">Simple ways to explore and discover.</MarketingCard><MarketingCard icon={Users} title="Inclusivity">A welcoming marketplace experience.</MarketingCard></div></section>
+    <section className="marketing-banner grid gap-6 md:grid-cols-2"><div className="flex flex-wrap items-center gap-4"><ShoppingCart className="size-8" aria-hidden="true" /><div className="flex-1"><h2>Start Shopping on Dreamshop</h2><p className="text-sm">Explore the current product collection.</p></div><Button asChild variant="outline"><Link href="/all-products">Shop Now<ArrowRight /></Link></Button></div><div className="flex flex-wrap items-center gap-4 md:border-l md:border-white/30 md:pl-6"><Package className="size-8" aria-hidden="true" /><div className="flex-1"><h2>Connect with Dreamshop</h2><p className="text-sm">Get in touch with a merchant enquiry.</p></div><Button asChild variant="outline"><Link href="/contact">Contact Us<ArrowRight /></Link></Button></div></section>
+  </div>;
 }

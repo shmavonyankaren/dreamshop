@@ -1,24 +1,2 @@
-import React from "react";
-
-export default function LoadingPage() {
-  return (
-    <div className="flex-1 w-full flex items-center justify-center min-h-0">
-      <div className="flex w-full h-[80vh] justify-center items-center">
-        <div className="container-loader">
-          <div className="line"></div>
-          <div className="line"></div>
-          <div className="line"></div>
-          <div className="line"></div>
-          <div className="line"></div>
-          <div className="line"></div>
-          <div className="line"></div>
-          <div className="line"></div>
-          <div className="line"></div>
-          <div className="line"></div>
-          <div className="line"></div>
-          <div className="line"></div>
-        </div>
-      </div>
-    </div>
-  );
-}
+import { LoadingIndicator, Skeleton } from "@/components/ui/foundation";
+export default function LoadingPage() { return <div className="ds-container ds-section"><LoadingIndicator label="Loading Dreamshop?" /><div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3" aria-hidden="true">{[1,2,3].map(id=><Skeleton key={id} className="h-52" />)}</div></div>; }

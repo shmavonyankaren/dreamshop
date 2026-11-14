@@ -11,7 +11,7 @@ export async function POST(req: Request) {
     if (req.headers.get("origin") !== new URL(req.url).origin) throw new IdentityError(403, "INVALID_ORIGIN", "Request origin is not allowed.");
     if (req.body !== null || new URL(req.url).search) throw new IdentityError(400, "INVALID_PAYLOAD", "Account recovery does not accept input.");
     const user = await recoverClerkIdentity(userId);
-    if (user.status !== "active") throw new IdentityError(403, "ACCOUNT_INACTIVE", "This account is not available.");
+    if (user.status !== "active" || user.applicationStatus !== "active") throw new IdentityError(403, "ACCOUNT_INACTIVE", "This account is not available.");
     return { synchronized: true };
   });
 }

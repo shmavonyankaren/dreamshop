@@ -13,7 +13,7 @@ export default function SignInPage() {
             Welcome back
           </h1>
           <p className="text-xs sm:text-sm text-body-secondary">
-            Sign in to continue to your blog
+            Sign in to continue to Dreamshop
           </p>
         </div>
 

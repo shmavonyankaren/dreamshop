@@ -1,32 +1,16 @@
 "use server";
-
-import handleError from "../utils/handleError";
 import { connectDB } from "../db/connection";
 import Category from "../db/models/category.model";
-import type { CreateCategoryParams } from "../types";
+import { marketplaceResult } from "../server/marketplace-response";
+import { categoryDTO, createManagedCategory, updateManagedCategory, deleteManagedCategory } from "../server/category-service";
 
-export const createCategory = async ({
-  categoryName,
-}: CreateCategoryParams) => {
+export async function createCategory(input: unknown) { return marketplaceResult(() => createManagedCategory(input)); }
+export async function updateCategory(input: unknown) { return marketplaceResult(() => updateManagedCategory(input)); }
+export async function deleteCategory(input: unknown) { return marketplaceResult(() => deleteManagedCategory(input)); }
+export async function getAllCategories() {
   try {
     await connectDB();
-
-    const newCategory = await Category.create({ name: categoryName });
-
-    return JSON.parse(JSON.stringify(newCategory));
-  } catch (error) {
-    handleError(error);
-  }
-};
-
-export const getAllCategories = async () => {
-  try {
-    await connectDB();
-
-    const categories = await Category.find();
-
-    return JSON.parse(JSON.stringify(categories));
-  } catch (error) {
-    handleError(error);
-  }
-};
+    const categories = await Category.find().select("_id name");
+    return categories.map(categoryDTO);
+  } catch { throw new Error("Unable to load categories. Please retry."); }
+}

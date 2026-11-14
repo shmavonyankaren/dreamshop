@@ -1,6 +1,8 @@
 import "server-only";
 import { createHash } from "node:crypto";
 import { z } from "zod";
+import type { ClientSession } from "mongoose";
+import type { ApplicationStatus, MerchantStatus } from "../authorization-contract";
 import { clerkClient } from "@clerk/nextjs/server";
 import { connectDB } from "../db/connection";
 import User from "../db/models/user.model";
@@ -30,25 +32,29 @@ type StoredIdentity = {
   _id: { toString(): string }; clerkId?: string; __v?: number;
   firstName?: string | null; lastName?: string | null; username?: string | null;
   photo?: string | null; email?: string | null; status?: AccountStatus;
+  applicationStatus?: ApplicationStatus; merchantStatus?: MerchantStatus; superAdmin?: boolean;
   createdAt?: Date; updatedAt?: Date; clerkUpdatedAt?: number; syncFingerprint?: string;
 };
-const fields = "_id clerkId firstName lastName username photo email status createdAt updatedAt";
+const fields = "_id clerkId firstName lastName username photo email status applicationStatus merchantStatus superAdmin createdAt updatedAt";
 function toInternal(user: StoredIdentity, clerkId: string): InternalUserDTO {
   return {
     id: user._id.toString(), clerkId,
     displayName: [user.firstName, user.lastName].filter(Boolean).join(" ") || user.username || null,
     avatar: user.photo || null, email: user.email || null, username: user.username || null,
     status: user.status ?? "active", // Legacy records predate status.
+    applicationStatus: user.applicationStatus ?? "active",
+    merchantStatus: user.merchantStatus ?? "none", superAdmin: user.superAdmin === true,
     createdAt: user.createdAt?.toISOString() ?? null, updatedAt: user.updatedAt?.toISOString() ?? null,
   };
 }
 export function toPublicUser(user: InternalUserDTO): PublicUserDTO {
   return { displayName: user.displayName, avatar: user.avatar };
 }
-export async function findIdentity(clerkId: string): Promise<InternalUserDTO | null> {
+export async function findIdentity(clerkId: string, session?: ClientSession): Promise<InternalUserDTO | null> {
   clerkIdSchema.parse(clerkId);
   await connectDB();
-  const user = await User.findOne({ clerkId }).select(fields).readConcern("majority");
+  const query = User.findOne({ clerkId }).select(fields);
+  const user = await (session ? query.session(session) : query.readConcern("majority"));
   return user ? toInternal(user, clerkId) : null;
 }
 

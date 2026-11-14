@@ -8,6 +8,10 @@ const UserSchema = new Schema({
   lastName: { type: String, default: null },
   photo: { type: String, default: null },
   status: { type: String, enum: ["active", "suspended", "deleted"], default: "active" },
+  // Application policy is never sourced from Clerk profile metadata.
+  applicationStatus: { type: String, enum: ["active", "suspended"], default: "active" },
+  merchantStatus: { type: String, enum: ["none", "pending", "approved", "rejected", "suspended"], default: "none" },
+  superAdmin: { type: Boolean, default: false },
   clerkCreatedAt: Number,
   clerkUpdatedAt: Number,
   syncFingerprint: String,
