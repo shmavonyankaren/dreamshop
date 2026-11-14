@@ -184,11 +184,64 @@ test("browser recovery coalesces in-flight requests and failed attempts remain r
   const f = fixture(); let release, calls = 0;
   f.state.fetch = async (url, options) => {
     assert.equal(url, "/api/identity/sync"); assert.equal(options.method, "POST"); assert.equal(options.body, undefined);
-    calls++; await new Promise((resolve) => { release = resolve; }); return Response.json({}, { status: calls === 1 ? 503 : 200 });
+    calls++; await new Promise((resolve) => { release = resolve; }); return Response.json({ synchronized: true }, { status: calls === 1 ? 503 : 200 });
   };
   const client = f.load("@/lib/utils/identityClient.ts"), first = client.recoverAuthenticatedIdentity("user_a");
   assert.equal(client.recoverAuthenticatedIdentity("user_a"), first); release(); await assert.rejects(first);
   const retry = client.recoverAuthenticatedIdentity("user_a"); release(); await retry; assert.equal(calls, 2);
+});
+
+test("real bodyless browser recovery survives the installed Next Node request adapter", async (t) => {
+  const { createServer } = require("node:http");
+  const { NodeNextRequest } = require("next/dist/server/base-http/node");
+  const { NextRequestAdapter } = require("next/dist/server/web/spec-extension/adapters/next-request");
+  const f = fixture(); let streamedRequests = 0;
+  const server = createServer(async (incoming, outgoing) => {
+    try {
+      const nodeRequest = new NodeNextRequest(incoming);
+      nodeRequest.url = `http://localhost:${server.address().port}${incoming.url}`;
+      const request = NextRequestAdapter.fromNodeNextRequest(nodeRequest, new AbortController().signal);
+      if (request.body !== null) streamedRequests++;
+      const response = await f.load("@/app/api/identity/sync/route.ts").POST(request);
+      outgoing.writeHead(response.status, Object.fromEntries(response.headers)); outgoing.end(await response.text());
+    } catch (error) { outgoing.writeHead(500); outgoing.end(String(error)); }
+  });
+  await new Promise(resolve => server.listen(0, "127.0.0.1", resolve));
+  t.after(() => new Promise(resolve => { server.close(resolve); server.closeAllConnections(); }));
+  f.state.fetch = (url, options) => {
+    assert.equal(options.body, undefined); assert.equal(options.headers, undefined);
+    assert.equal(options.method, "POST"); assert.equal(options.cache, "no-store");
+    const origin = `http://localhost:${server.address().port}`;
+    return fetch(origin + url, { ...options, headers: { origin } }).then(async response => { assert.equal(response.status, 200, await response.clone().text()); return response; });
+  };
+  const client = f.load("@/lib/utils/identityClient.ts");
+  await client.recoverAuthenticatedIdentity("user_a");
+  const resolver = f.load("@/lib/server/authenticated-user.ts");
+  const id = await resolver.requireCartUser(), writes = f.state.writes;
+  await client.recoverAuthenticatedIdentity("user_a");
+  assert.equal(await resolver.requireCartUser(), id); assert.equal(f.state.writes, writes);
+  assert.equal(f.state.users.size, 1); assert.equal(streamedRequests, 2);
+});
+
+test("recovery accepts empty streams but rejects every nonempty serialization before Clerk lookup", async () => {
+  for (const body of ["", "{}", "null", "undefined", "\"\"", " ", "false", "x".repeat(100000)]) {
+    const f = fixture();
+    const request = new Request("https://shop.test/api/identity/sync", { method: "POST", body, headers: { origin: "https://shop.test", "Content-Length": "0" } });
+    assert.notEqual(request.body, null);
+    const response = await f.load("@/app/api/identity/sync/route.ts").POST(request);
+    assert.equal(response.status, body === "" ? 200 : 400);
+    if (body) { assert.equal((await response.json()).code, "INVALID_PAYLOAD"); assert.equal(f.state.clerkCalls.length, 0); assert.equal(f.state.writes, 0); }
+  }
+});
+
+test("client rejects failed or incomplete acknowledgements and permits subsequent recovery", async () => {
+  const f = fixture(), client = f.load("@/lib/utils/identityClient.ts");
+  for (const data of [{}, null, { synchronized: false }]) {
+    f.state.fetch = async () => Response.json(data);
+    await assert.rejects(client.recoverAuthenticatedIdentity("user_a"), /not confirmed/);
+  }
+  f.state.fetch = async () => Response.json({ synchronized: true });
+  await client.recoverAuthenticatedIdentity("user_a");
 });
 test("contention exhaustion preserves data and retry succeeds", async () => {
   const f = fixture(); await f.webhook("user.created", profile()); f.state.conflict = true;

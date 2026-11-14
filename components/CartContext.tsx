@@ -1,7 +1,8 @@
 "use client";
 
-import React, { createContext, useContext, useEffect, useState } from "react";
+import React, { createContext, useContext, useEffect, useState, useCallback, useRef } from "react";
 import { useUser } from "@clerk/nextjs";
+import { useRouter } from "next/navigation";
 import { getLocalCart } from "@/lib/utils/localCart";
 import { recoverAuthenticatedIdentity } from "@/lib/utils/identityClient";
 import { getCartCount, ensureGuestCartMerged, setCartSession, getCartSyncStatus, dismissGuestConflicts, type SyncStatus } from "@/lib/utils/cartClient";
@@ -24,14 +25,44 @@ const CartContext = createContext<CartContextType | null>(null);
 
 export function CartProvider({ children }: { children: React.ReactNode }) {
   const { user, isSignedIn, isLoaded } = useUser();
+  const router = useRouter();
+  const userId = isSignedIn ? user?.id : undefined;
+  const activeSession = useRef<string | undefined>(undefined);
   const [cartItemsCount, setCartItemsCount] = useState(0);
   const [syncStatus, setSyncStatus] = useState<SyncStatus>({ state: "idle", message: "" });
   const [refreshVersion, setRefreshVersion] = useState(0);
+  const synchronizeAccount = useCallback(async (id: string, isCurrent: () => boolean) => {
+    setSyncStatus({ state: "idle", message: "" });
+    const loadingTimer = setTimeout(() => {
+      if (isCurrent()) setSyncStatus({ state: "syncing", message: "Synchronizing your account..." });
+    }, 500);
+    try { await recoverAuthenticatedIdentity(id); }
+    catch {
+      if (isCurrent()) setSyncStatus({ state: "error", message: "Account synchronization failed. Retry synchronization to recover your account." });
+      return;
+    } finally { clearTimeout(loadingTimer); }
+    if (!isCurrent()) return;
+    // Refresh server components independently of cart reconciliation success.
+    router.refresh();
+    setRefreshVersion(version => version + 1);
+    setSyncStatus({ state: "idle", message: "" });
+    try {
+      await ensureGuestCartMerged(id);
+      if (isCurrent()) setSyncStatus(getCartSyncStatus());
+    } catch (error) {
+      if (isCurrent()) setSyncStatus({ state: "error", message: error instanceof Error ? error.message : "Cart synchronization failed. Please retry." });
+    }
+    if (!isCurrent()) return;
+    try {
+      const count = await getCartCount();
+      if (isCurrent()) setCartItemsCount(count);
+    } catch {
+      if (isCurrent()) setSyncStatus({ state: "error", message: "Your account is synchronized, but the cart could not be loaded. Please retry." });
+    }
+  }, [router]);
   const retrySync = async () => {
-    if (!isSignedIn || !user) return;
-    try { await recoverAuthenticatedIdentity(user.id); await ensureGuestCartMerged(user.id); }
-    catch (error) { setSyncStatus({ state: "error", message: error instanceof Error ? error.message : "Account synchronization failed. Please retry." }); }
-    setRefreshVersion((version) => version + 1);
+    if (!userId) return;
+    await synchronizeAccount(userId, () => activeSession.current === userId);
   };
   const dismissSaved = async () => {
     try { await dismissGuestConflicts(); }
@@ -70,31 +101,18 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     let cancelled = false;
-    if (isLoaded) setCartSession(isSignedIn && user ? user.id : null);
+    activeSession.current = userId;
+    if (isLoaded) setCartSession(userId ?? null);
     const syncCartCount = async () => {
       if (!isLoaded) return;
-      try {
-        let count = getLocalCart().reduce((sum, item) => sum + item.quantity, 0);
-        if (isSignedIn && user) {
-          await recoverAuthenticatedIdentity(user.id);
-          if (cancelled) return;
-          setRefreshVersion((version) => version + 1);
-          try { await ensureGuestCartMerged(user.id); }
-          catch { /* A recoverable merge failure must not hide the account count. */ }
-          count = await getCartCount();
-        }
-        if (!cancelled) setCartItemsCount(count);
-      } catch (error) {
-        if (!cancelled) {
-          setCartItemsCount(0);
-          setSyncStatus({ state: "error", message: "Account synchronization failed. Retry synchronization to recover your account." });
-        }
-        console.error("Unable to synchronize cart:", error);
-      }
+      if (userId) return synchronizeAccount(userId, () => !cancelled);
+      setSyncStatus({ state: "idle", message: "" });
+      try { setCartItemsCount(getLocalCart().reduce((sum, item) => sum + item.quantity, 0)); }
+      catch { setSyncStatus({ state: "error", message: "Saved cart data needs recovery." }); }
     };
     void syncCartCount();
-    return () => { cancelled = true; };
-  }, [isLoaded, isSignedIn, user]);
+    return () => { cancelled = true; activeSession.current = undefined; };
+  }, [isLoaded, userId, synchronizeAccount]);
 
   const increaseCartCount = () => {
     setCartItemsCount((prev) => prev + 1);
