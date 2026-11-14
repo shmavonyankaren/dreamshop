@@ -57,7 +57,7 @@ function findElement(node,predicate) {
   return null;
 }
 test("signed-out header has one account entry and preserves wishlist/cart",()=>{const f=fixture();const Header=f.load("@/components/shared/Header").default;const html=renderToStaticMarkup(React.createElement(Header));assert.equal((html.match(/Sign in to your account/g)||[]).length,1);assert(!html.includes("data-avatar"));assert(html.includes('href="/favourites"'));assert(html.includes('aria-label="Shopping cart, 3 items"'));});
-test("signed-in header has one avatar and account/profile/sign-out menu actions",()=>{const f=fixture(true);const html=renderToStaticMarkup(React.createElement(f.load("@/components/shared/Header").default));assert.equal((html.match(/data-avatar="true"/g)||[]).length,1);assert.equal((html.match(/href="\/account"/g)||[]).length,1);assert(html.includes('data-clerk-action="manageAccount"'));assert(html.includes('data-clerk-action="signOut"'));assert(!html.includes("Sign in to your account"));});
+test("signed-in header has one avatar and account/profile/sign-out menu actions",()=>{const f=fixture(true);const html=renderToStaticMarkup(React.createElement(f.load("@/components/shared/Header").default));assert.equal((html.match(/data-avatar="true"/g)||[]).length,1);assert.equal((html.match(/href="\/account"/g)||[]).length,1);assert.equal((html.match(/href="\/favourites"/g)||[]).length,1);assert(!html.includes("My Favorites"));assert(html.includes('data-clerk-action="manageAccount"'));assert(html.includes('data-clerk-action="signOut"'));assert(!html.includes("Sign in to your account"));});
 test("mobile drawer retains navigation and theme but does not duplicate account controls",()=>{const f=fixture(true);const html=renderToStaticMarkup(React.createElement(f.load("@/components/shared/Header").default));assert(html.includes('data-mobile-drawer="Explore Dreamshop"'));assert(html.includes('aria-label="Open navigation"'));assert(html.includes('href="/faq"'));assert.equal((html.match(/data-avatar="true"/g)||[]).length,1);assert(html.includes('aria-label="Choose color theme"'));});
 test("mobile navigation invokes close callback and recognizes active route",()=>{const f=fixture();const Navigation=f.load("@/components/shared/NavigationMenu").default;const tree=Navigation({onNavigate:()=>{f.state.mobileClosed=true;}});const link=findElement(tree,e=>e.props?.href==="/faq");assert.equal(link.props["aria-current"],"page");link.props.onClick();assert.equal(f.state.mobileClosed,true);});
 
@@ -79,7 +79,7 @@ for (const [name, user, merchant, admin] of [
   const f = fixture(true), AuthHeader = f.load("@/components/shared/AuthHeader").default;
   const html = renderToStaticMarkup(React.createElement(f.load("@/components/shared/Header").default, { accountControl: React.createElement(AuthHeader, { navigation }) }));
   assert.equal(html.includes('href="/merchant"'), merchant); assert.equal(html.includes('href="/admin"'), admin);
-  assert(html.includes("My Account")); assert(html.includes("My Favorites"));
+  assert(html.includes("My Account")); assert(!html.includes("My Favorites"));
   assert.equal((html.match(/data-avatar="true"/g)||[]).length, 1);
   assert.equal((html.match(/data-clerk-action="manageAccount"/g)||[]).length, 1);
   assert.equal((html.match(/data-clerk-action="signOut"/g)||[]).length, 1);

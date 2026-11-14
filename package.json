@@ -12,7 +12,7 @@
     "test:authorization": "node --test tests/authorization.test.cjs",
     "test:storefront": "node --test tests/storefront.test.cjs",
     "test:customer": "node --test tests/customer.test.cjs",
-    "test:ui": "node --test tests/ui-consistency.test.cjs",
+    "test:ui": "node --test tests/ui-consistency.test.cjs tests/account-navigation.test.cjs",
     "test:merchant": "node --test tests/merchant.test.cjs",
     "test:admin": "node --test tests/admin-storefront.test.cjs",
     "test:readiness": "node --test tests/readiness.test.cjs",

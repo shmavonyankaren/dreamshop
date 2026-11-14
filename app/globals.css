@@ -119,6 +119,7 @@
   :focus-visible { outline: 3px solid var(--ring); outline-offset: 4px; }
   img,svg { max-width: 100%; } img { height: auto; }
   [id] { scroll-margin-top: 7rem; }
+  .ds-account-section[id] { scroll-margin-top: 9rem; }
   ::selection { background: #ffb8c4; color: #10142c; }
 }
 @layer components {
