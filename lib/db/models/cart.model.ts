@@ -48,7 +48,7 @@ const CartSchema = new Schema(
       outcome: { type: Schema.Types.Mixed, required: true },
     }, { _id: false })], default: [] },
   },
-  { timestamps: true },
+  { timestamps: true, autoIndex: false, autoCreate: false },
 );
 
 const Cart = models.Cart || model("Cart", CartSchema);

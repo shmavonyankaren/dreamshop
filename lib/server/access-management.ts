@@ -8,8 +8,8 @@ import { productIdSchema } from "../cart-contract";
 import { authorizedMutation } from "./marketplace-transaction";
 
 const targetSchema = z.object({ userId: productIdSchema, reason: z.string().trim().min(1).max(500) });
-const merchantSchema = targetSchema.extend({ status: z.enum(["none", "pending", "approved", "rejected", "suspended"]) }).strict();
-const accountSchema = targetSchema.extend({ status: z.enum(["active", "suspended"]) }).strict();
+const merchantSchema = targetSchema.extend({ status: z.enum(["none", "pending", "approved", "rejected", "suspended"]), expectedStatus: z.enum(["none", "pending", "approved", "rejected", "suspended"]).optional() }).strict();
+const accountSchema = targetSchema.extend({ status: z.enum(["active", "suspended"]), expectedStatus: z.enum(["active", "suspended"]).optional() }).strict();
 const adminSchema = targetSchema.extend({ enabled: z.boolean() }).strict();
 const transitions: Record<MerchantStatus, MerchantStatus[]> = {
   none: ["pending"], pending: ["approved", "rejected", "none"], approved: ["suspended", "none"],
@@ -21,6 +21,7 @@ async function audit(actor: string, target: string, action: string, before: unkn
 async function targetUser(id: string, session: ClientSession) {
   const user = await User.findById(id).session(session);
   if (!user) throw new AuthorizationError(404, "NOT_FOUND", "Account not found.");
+  if (user.status === "deleted") throw new AuthorizationError(409, "ACCOUNT_INACTIVE", "Deleted identities cannot be changed.");
   return user;
 }
 async function protectLastAdmin(id: string, isAdmin: boolean, session: ClientSession) {
@@ -40,9 +41,10 @@ export async function requestMerchantAccess() {
 }
 export async function reviewMerchantAccess(input: unknown) {
   return authorizedMutation("merchant:approve", async (actor, session) => {
-    const { userId, status, reason } = merchantSchema.parse(input);
+    const { userId, status, reason, expectedStatus } = merchantSchema.parse(input);
     const user = await targetUser(userId, session), before: MerchantStatus = user.merchantStatus ?? "none";
     if (before === status) return { changed: false };
+    if (expectedStatus && before !== expectedStatus) throw new AuthorizationError(409, "CONFLICT", "This application changed. Refresh before reviewing it.");
     if (!transitions[before].includes(status)) throw new AuthorizationError(409, "INVALID_TRANSITION", "This merchant transition is not allowed.");
     if (status === "approved" && ((user.status ?? "active") !== "active" || (user.applicationStatus ?? "active") !== "active")) {
       throw new AuthorizationError(409, "ACCOUNT_INACTIVE", "An inactive account cannot be approved.");
@@ -54,9 +56,10 @@ export async function reviewMerchantAccess(input: unknown) {
 }
 export async function setApplicationStatus(input: unknown) {
   return authorizedMutation("users:manage", async (actor, session) => {
-    const { userId, status, reason } = accountSchema.parse(input);
+    const { userId, status, reason, expectedStatus } = accountSchema.parse(input);
     const user = await targetUser(userId, session), before: ApplicationStatus = user.applicationStatus ?? "active";
     if (before === status) return { changed: false };
+    if (expectedStatus && before !== expectedStatus) throw new AuthorizationError(409, "CONFLICT", "This account changed. Refresh before reviewing it.");
     if (status === "suspended") await protectLastAdmin(userId, user.superAdmin === true, session);
     await User.updateOne({ _id: userId }, { $set: { applicationStatus: status }, $inc: { __v: 1 } }, { session, runValidators: true });
     await audit(actor.id, userId, "account.status", before, status, reason, session);

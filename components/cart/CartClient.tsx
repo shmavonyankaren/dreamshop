@@ -6,10 +6,11 @@ import CartSyncStatus from "@/components/cart/CartSyncStatus";
 import { CartPresentation } from "./CartPresentation";
 import { LoadingIndicator, ErrorFeedback } from "@/components/ui/foundation";
 import { Button } from "@/components/ui/button";
+import { unavailableProduct } from "@/lib/cart-contract";
 import type { ProductDTO } from "@/lib/cart-contract";
 import { getLocalCart, mutateGuestCart } from "@/lib/utils/localCart";
 import { fetchCartByUser, fetchProductsByIds, removeProductFromUserCart, updateProductQuantity } from "@/lib/utils/cartClient";
-type CartProduct = ProductDTO & { quantity: number };
+type CartProduct = ProductDTO & { quantity: number; available?: boolean };
 type Action = { type: "update" | "remove"; productId: string; quantity?: number };
 export default function CartClient() {
   const [cartProducts, setCartProducts] = useState<CartProduct[]>([]);
@@ -34,10 +35,11 @@ export default function CartClient() {
         let products: CartProduct[];
         if (isSignedIn && user) {
           const cart = await fetchCartByUser();
-          products = cart?.items.map((item) => ({ ...item.product, quantity: item.quantity })) ?? [];
+          products = cart?.items.map((item) => ({ ...item.product, quantity: item.quantity, available: item.available })) ?? [];
         } else {
           const local = getLocalCart();
-          products = (await fetchProductsByIds(local.map((item) => item.productId))).map((product) => ({ ...product, quantity: local.find((item) => item.productId === product._id)!.quantity }));
+          const found = new Map((await fetchProductsByIds(local.map(item => item.productId))).map(p => [p._id, p]));
+          products = local.map(item => ({ ...(found.get(item.productId) ?? unavailableProduct(item.productId)), quantity: item.quantity, available: found.has(item.productId) }));
         }
         if (!cancelled) setCartProducts(products);
       } catch (error) {
@@ -58,6 +60,8 @@ export default function CartClient() {
           const result = quantity === undefined ? await removeProductFromUserCart(id) : await updateProductQuantity(id, quantity);
           setCartProducts(result.cart?.items.map((item) => ({ ...item.product, quantity: item.quantity })) ?? []);
         } else {
+          const current = cartProducts.find(item => item._id === id);
+          if (quantity !== undefined && current && quantity > current.quantity && !(await fetchProductsByIds([id])).length) throw new Error("This product is currently unavailable.");
           await mutateGuestCart(quantity === undefined ? "remove" : "update", id, quantity);
           setCartProducts((items) => quantity === undefined ? items.filter((item) => item._id !== id) : items.map((item) => item._id === id ? { ...item, quantity } : item));
         }

@@ -2,10 +2,11 @@
 const test = require("node:test"), assert = require("node:assert/strict");
 const fs = require("node:fs"), path = require("node:path"), vm = require("node:vm"), ts = require("typescript");
 const React = require("react"), { renderToStaticMarkup } = require("react-dom/server");
+const { aggregate: eligibilityAggregate, fixtures: eligibilityFixtures } = require("./helpers/eligibility-aggregate.cjs");
 const root = path.resolve(__dirname,".."), A="a".repeat(24), B="b".repeat(24), P="1".repeat(24), Q="2".repeat(24);
 function fixture() {
   const state = { actor:A, mapped:true, status:"active", applicationStatus:"active", lists:new Map(), products:new Map(), writes:[], saved:[], guest:false, wishlistError:"", fail:false };
-  for(const id of [P,Q])state.products.set(id,{_id:id,title:"Product",description:"Description",price:"10.00",imageUrl:"/image.png",tags:[],category:{_id:P,name:"Category",private:"secret"},owner:{email:"private",clerkId:"secret"}});
+  for(const id of [P,Q])state.products.set(id,{_id:id,title:"Product",description:"Description",price:"10.00",imageUrl:"/image.png",tags:[],category:{_id:P,name:"Category",private:"secret"},owner:A,store:A,status:"active",moderationStatus:"clear"});
   const query = value => ({ select(){return this;},populate(){return this;},limit(){return this;},then(resolve,reject){return Promise.resolve().then(value).then(resolve,reject);} });
   const wishlist = {
     findById(id){return query(()=>state.lists.has(id)?{products:[...state.lists.get(id)]}:null);},
@@ -28,7 +29,7 @@ function fixture() {
     "lib/db/connection.ts":{connectDB:async()=>{}},
     "lib/server/identity-service.ts":{findIdentity:async()=>state.mapped?{id:state.actor,clerkId:"private-clerk",displayName:"Customer",email:state.actor+"@example.test",avatar:null,username:"customer",createdAt:null,status:state.status,applicationStatus:state.applicationStatus,merchantStatus:"none",superAdmin:false}:null},
     "lib/db/models/wishlist.model.ts":{default:wishlist},
-    "lib/db/models/product.model.ts":{default:{exists:async({_id})=>state.products.has(_id),find:({_id})=>query(()=>[...state.products.values()].filter(p=>_id.$in.includes(p._id)))}},
+    "lib/db/models/product.model.ts":{default:{aggregate:pipeline=>({option:async()=>eligibilityAggregate(pipeline,eligibilityFixtures(state.products.values()))}),exists:async({_id,status})=>state.products.has(_id)&&(!status||state.products.get(_id).status!==status.$ne),find:({_id,status})=>query(()=>[...state.products.values()].filter(p=>_id.$in.includes(p._id)&&(!status||p.status!==status.$ne)))}},
     "components/customer/WishlistProvider.tsx":{useWishlist:()=>({data:{products:[...state.products.values()],savedIds:state.saved,unavailableIds:[],count:state.saved.length},loading:false,busy:false,error:state.wishlistError,refresh(){},change:async()=>{}})},
     "components/CartContext.tsx":{useCart:()=>({cartItemsCount:2})},
     "components/cart/CartSyncStatus.tsx":{default:()=>null},
@@ -79,3 +80,8 @@ test("product details integrate the shared favorite and quantity cart controls",
 test("cart empty state provides a working catalog link",()=>{const f=fixture();const {CartPresentation}=f.load("@/components/cart/CartPresentation");const html=renderToStaticMarkup(React.createElement(CartPresentation,{products:[],pending:false,onRemove(){},onQuantityChange(){}}));assert(html.includes("Your cart is empty"));assert(html.includes('href="/all-products"'));});
 test("cart renders quantity bounds, removal, listed prices and unavailable checkout",()=>{const f=fixture();const {CartPresentation}=f.load("@/components/cart/CartPresentation");const html=renderToStaticMarkup(React.createElement(CartPresentation,{products:[{...f.state.products.get(P),quantity:99}],pending:false,onRemove(){},onQuantityChange(){}}));assert(html.includes("Increase quantity of Product"));assert(html.includes("Remove Product from cart"));assert(html.includes("10.00"));assert(html.includes("No order will be placed"));assert(html.includes("disabled"));});
 test("price summary never invents currency or sums unrestricted price strings",()=>{const f=fixture();const {cartPriceSummary}=f.load("@/lib/customer-pricing");for(const price of ["10.00","$10","1,000","NaN","-20","10.999","Infinity"]){const result=cartPriceSummary([{price,quantity:2}]);assert.equal(result.itemCount,2);assert.equal(result.subtotal,undefined);assert(result.reason.includes("currency")||result.reason.includes("cannot be safely"));}assert.equal(cartPriceSummary([]).itemCount,0);});
+
+test("archived wishlist products become unavailable without losing saved IDs",async()=>{const f=fixture();f.state.lists.set(A,[P]);f.state.products.get(P).status="archived";const data=await f.service.getWishlist();assert.equal(data.products.length,0);assert(data.unavailableIds.includes(P));await assert.rejects(f.service.mutateWishlist({productId:P,action:"add"}));});
+
+test("held favorites retain only saved IDs and remain removable",async()=>{const f=fixture();await f.service.mutateWishlist({productId:P,action:"add"});Object.assign(f.state.products.get(P),{moderationStatus:"held",moderationReason:"private reason"});const data=await f.service.getWishlist();assert.equal(data.products.length,0);assert(data.unavailableIds.includes(P));assert(!JSON.stringify(data).includes("private reason"));await assert.rejects(f.service.mutateWishlist({productId:P,action:"add"}),e=>e.status===404);assert.equal((await f.service.mutateWishlist({productId:P,action:"remove"})).count,0);});
+test("unavailable cart presentation disables increases and omits product links",()=>{const f=fixture();const {CartPresentation}=f.load("@/components/cart/CartPresentation");const html=renderToStaticMarkup(React.createElement(CartPresentation,{products:[{_id:P,title:"Unavailable product",imageUrl:"",price:"",category:null,quantity:2,available:false}],pending:false,onRemove(){},onQuantityChange(){}}));assert(!html.includes('/all-products/'+P));assert(html.includes("Unavailable. Remove"));assert(/disabled=""[^>]*aria-label="Increase/.test(html));assert(html.includes("Remove Unavailable product from cart"));});

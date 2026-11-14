@@ -1,46 +1,45 @@
 import "server-only";
+import type { StoreProduct } from "./public-stores";
+import { countEligibleProducts, eligibleProductRecords, objectId, toPublicListing } from "./product-eligibility";
 import { connectDB } from "../db/connection";
-import Product from "../db/models/product.model";
 import Category from "../db/models/category.model";
 import { productIdSchema, type ProductDTO } from "../cart-contract";
 import { parseCatalogQuery, type SearchParams } from "../storefront-contract";
-import { PRODUCT_FIELDS, toProductDTO, type ProductRecord } from "./product-dto";
 
 export type PublicCategory = { _id: string; name: string };
-const publicProducts = (filter: object) => Product.find(filter).select(PRODUCT_FIELDS).populate({ path: "category", select: "_id name" });
 export async function getCatalog(input: SearchParams = {}) {
   const query = parseCatalogQuery(input);
   const filter: Record<string, unknown> = {};
-  if (query.category) filter.category = query.category;
+  if (query.category) filter.category = objectId(query.category);
   if (query.q) {
     const literal = query.q.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
     filter.$or = ["title", "description", "tags"].map(field => ({ [field]: { $regex: literal, $options: "i" } }));
   }
   const sorts: Record<typeof query.sort, Record<string, 1 | -1>> = { newest: { createdAt: -1, _id: -1 }, oldest: { createdAt: 1, _id: 1 }, "name-asc": { title: 1, _id: 1 }, "name-desc": { title: -1, _id: -1 } };
   await connectDB();
-  const total = await Product.countDocuments(filter).maxTimeMS(5000);
+  const total = await countEligibleProducts(filter);
   const totalPages = Math.max(1, Math.ceil(total / query.pageSize));
   const page = Math.min(query.page, totalPages);
-  const records = await publicProducts(filter).sort(sorts[query.sort]).skip((page - 1) * query.pageSize).limit(query.pageSize).maxTimeMS(5000);
-  return { products: records.map((record: ProductRecord) => toProductDTO(record)) as ProductDTO[], total, totalPages, query: { ...query, page } };
+  const records = await eligibleProductRecords(filter, { sort: sorts[query.sort], skip: (page - 1) * query.pageSize, limit: query.pageSize });
+  return { products: records.map(toPublicListing), total, totalPages, query: { ...query, page } };
 }
 export async function getStorefrontCategories(): Promise<PublicCategory[]> {
   await connectDB();
   const records = await Category.find().select("_id name").sort({ name: 1, _id: 1 }).limit(200).maxTimeMS(5000);
   return records.map((record: { _id: { toString(): string }; name: string }) => ({ _id: record._id.toString(), name: record.name }));
 }
-export async function getStorefrontProduct(id: string): Promise<ProductDTO | null> {
+export async function getStorefrontProduct(id: string): Promise<StoreProduct | null> {
   const parsed = productIdSchema.safeParse(id);
   if (!parsed.success) return null;
   await connectDB();
-  const product = await Product.findById(parsed.data).select(PRODUCT_FIELDS).populate({ path: "category", select: "_id name" }).maxTimeMS(5000);
-  return product ? toProductDTO(product) : null;
+  const [product] = await eligibleProductRecords({ _id: objectId(parsed.data) }, { limit: 1 });
+  return product ? toPublicListing(product) : null;
 }
 export async function getRelatedProducts(product: ProductDTO): Promise<ProductDTO[]> {
   if (!product.category) return [];
   await connectDB();
-  const records = await publicProducts({ category: product.category._id, _id: { $ne: product._id } }).sort({ createdAt: -1, _id: -1 }).limit(4).maxTimeMS(5000);
-  return records.map((record: ProductRecord) => toProductDTO(record));
+  const records = await eligibleProductRecords({ category: objectId(product.category._id), _id: { $ne: objectId(product._id) } }, { limit: 4 });
+  return records.map(toPublicListing);
 }
 export async function getHomepageData() {
   const [categories, catalog] = await Promise.allSettled([getStorefrontCategories(), getCatalog({ pageSize: "8" })]);

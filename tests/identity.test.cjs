@@ -273,7 +273,7 @@ test("legacy identity update preserves MongoDB ID and adds synchronization metad
   await f.webhook("user.updated", profile()); assert.equal(f.state.users.get("user_a")._id, "a".repeat(24));
   assert.equal(f.state.users.get("user_a").clerkUpdatedAt, 2000);
 });
-test("real Mongoose schema accepts minimal identities and declares only the Clerk unique index", () => {
+test("real Mongoose schema preserves the Clerk unique index and declares non-unique admin indexes", () => {
   const mongoose = require("mongoose"), filename = path.join(root, "lib/db/models/user.model.ts");
   const output = ts.transpileModule(fs.readFileSync(filename, "utf8"), { compilerOptions: { module: ts.ModuleKind.CommonJS } }).outputText;
   const loaded = { exports: {} }; new vm.Script("(function(require,module,exports){" + output + "\n})").runInThisContext()(require, loaded, loaded.exports);
@@ -281,7 +281,7 @@ test("real Mongoose schema accepts minimal identities and declares only the Cler
   assert.equal(record.validateSync(), undefined); assert.equal(record.email, null); assert.equal(record.username, null);
   assert.equal(record.superAdmin, false); assert.equal(record.merchantStatus, "none"); assert.equal(record.applicationStatus, "active");
   assert.equal(Model.schema.options.autoIndex, false);
-  assert.deepEqual(Model.schema.indexes().map(([keys, options]) => [keys, options.unique]), [[{ clerkId: 1 }, true]]);
+  assert.deepEqual(Model.schema.indexes().map(([keys, options]) => [keys, options.unique]), [[{ clerkId: 1 }, true], [{ createdAt: -1, _id: -1 }, undefined], [{ merchantStatus: 1, createdAt: -1, _id: -1 }, undefined], [{ status: 1, applicationStatus: 1, merchantStatus: 1 }, undefined]]);
   mongoose.deleteModel("User");
 });
 

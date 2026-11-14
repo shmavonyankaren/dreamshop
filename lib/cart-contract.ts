@@ -33,7 +33,7 @@ export type ProductDTO = {
   tags: string[];
   category: { _id: string; name: string } | null;
 };
-export type CartDTO = { items: { product: ProductDTO; quantity: number }[] };
+export type CartDTO = { items: { product: ProductDTO; quantity: number; available?: boolean }[] };
 export type CartApiResponse = { cart: CartDTO | null; count: number };
 export type MergeReason = "PRODUCT_UNAVAILABLE" | "QUANTITY_LIMIT" | "ITEM_LIMIT" | "ACCOUNT_CHANGED";
 export type MergeItemOutcome = {
@@ -56,3 +56,5 @@ export class CartError extends Error {
     super(message);
   }
 }
+
+export function unavailableProduct(id: string): ProductDTO { return { _id: id, title: "Unavailable product", description: "This saved item is currently unavailable.", imageUrl: "", price: "", tags: [], category: null }; }

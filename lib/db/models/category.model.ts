@@ -7,7 +7,7 @@ export interface ICategory extends Document {
 
 const CategorySchema = new Schema({
   name: { type: String, required: true, unique: true },
-});
+}, { autoIndex: false, autoCreate: false });
 
 const Category = models.Category || model("Category", CategorySchema);
 

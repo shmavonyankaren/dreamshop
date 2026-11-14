@@ -2,19 +2,22 @@ import "server-only";
 import { createHash } from "node:crypto";
 import { auth } from "@clerk/nextjs/server";
 import Cart from "../db/models/cart.model";
-import Product from "../db/models/product.model";
+import { eligibleProductsByIds } from "../server/product-eligibility";
 import { requireCartUser } from "../server/authenticated-user";
-import { PRODUCT_FIELDS, toProductDTO, type ProductRecord } from "../server/product-dto";
+import { unavailableProduct } from "../cart-contract";
 import { addCartSchema, cartItemSchema, cartItemsSchema, removeCartSchema, mergeCartSchema, CartError, MAX_MERGE_RECEIPTS, MAX_QUANTITY, MAX_CART_ITEMS, type MergeOutcome, type MergeItemOutcome, type CartDTO, type LocalCartItem } from "../cart-contract";
 
 type MergeReceipt = { operationId: string; fingerprint: string; version: number; outcome: MergeOutcome };
 type StoredCart = { _id: unknown; __v?: number; mergeReceipts?: MergeReceipt[]; items: { product: { toString(): string }; quantity: number }[] };
 async function readCart(user: string): Promise<CartDTO | null> {
-  const cart = await Cart.findOne({ user }).populate({ path: "items.product", model: Product, select: PRODUCT_FIELDS, populate: { path: "category", select: "_id name" } });
+  const cart = await Cart.findOne({ user });
   if (!cart) return null;
-  return { items: (cart.items as { product: ProductRecord | null; quantity: number }[])
-    .filter((item): item is { product: ProductRecord; quantity: number } => item.product !== null)
-    .map((item) => ({ product: toProductDTO(item.product), quantity: item.quantity })) };
+  const ids = cart.items.map((item: { product: { toString(): string } }) => String(item.product));
+  const available = new Map((await eligibleProductsByIds(ids)).map(product => [product._id, product]));
+  return { items: cart.items.map((item: { product: { toString(): string }; quantity: number }) => {
+    const id = String(item.product), product = available.get(id);
+    return product ? { product, quantity: item.quantity } : { product: unavailableProduct(id), quantity: item.quantity, available: false };
+  }) };
 }
 // Server-only entry points always resolve ownership from the session.
 export async function getCartByUser() { return readCart(await requireCartUser()); }
@@ -23,15 +26,15 @@ export async function getCartItemsCount() {
   return cart?.items.reduce((sum, item) => sum + item.quantity, 0) ?? 0;
 }
 async function requireProducts(items: LocalCartItem[]) {
-  const found = await Product.find({ _id: { $in: items.map((item) => item.productId) } }).select("_id");
+  const found = await eligibleProductsByIds(items.map(item => item.productId));
   if (found.length !== items.length) throw new CartError(404, "PRODUCT_NOT_FOUND", "One or more products are no longer available.");
 }
-async function changeCart(user: string, change: (items: LocalCartItem[]) => LocalCartItem[], create = false) {
+async function changeCart(user: string, change: (items: LocalCartItem[]) => LocalCartItem[] | Promise<LocalCartItem[]>, create = false) {
   // Compare-and-swap keeps aggregate limits valid across concurrent mutations.
   for (let attempt = 0; attempt < 3; attempt++) {
     const cart: StoredCart | null = await Cart.findOne({ user });
     if (!cart && !create) throw new CartError(404, "CART_NOT_FOUND", "Cart not found.");
-    const items = cartItemsSchema.parse(change(cart?.items.map((item) => ({ productId: item.product.toString(), quantity: item.quantity })) ?? []));
+    const items = cartItemsSchema.parse(await change(cart?.items.map((item) => ({ productId: item.product.toString(), quantity: item.quantity })) ?? []));
     const storedItems = items.map((item) => ({ product: item.productId, quantity: item.quantity }));
     if (!cart) {
       try { await Cart.create({ user, items: storedItems }); return readCart(user); }
@@ -48,8 +51,8 @@ async function changeCart(user: string, change: (items: LocalCartItem[]) => Loca
 export async function addToCart(input: unknown) {
   const user = await requireCartUser();
   const item = addCartSchema.parse(input);
-  await requireProducts([item]);
-  return changeCart(user, (items) => {
+  return changeCart(user, async (items) => {
+    await requireProducts([item]);
     const existing = items.find((entry) => entry.productId === item.productId);
     if (existing) existing.quantity += item.quantity;
     else items.push(item);
@@ -81,7 +84,7 @@ export async function mergeLocalCartToUserCart(input: unknown) {
     const parent = request.parentOperationId ? receipts.find((entry) => entry.operationId === request.parentOperationId) : undefined;
     if (request.parentOperationId && !parent) throw new CartError(409, "PARENT_NOT_FOUND", "Previous synchronization is not available for this account.");
     const items = cartItemsSchema.parse(cart?.items.map((item) => ({ productId: item.product.toString(), quantity: item.quantity })) ?? []);
-    const found = await Product.find({ _id: { $in: incoming.map((item) => item.productId) } }).select("_id");
+    const found = await eligibleProductsByIds(incoming.map(item => item.productId));
     const available = new Set<string>(found.map((product: { _id: { toString(): string } }) => product._id.toString()));
     if (!request.operationId) await requireProducts(incoming);
     const desired = new Map(incoming.map((item) => [item.productId, item.quantity]));
@@ -107,7 +110,7 @@ export async function mergeLocalCartToUserCart(input: unknown) {
       const before = previous && previous.applied > 0 ? previous.before : current;
       let applied = Math.min(requested, MAX_QUANTITY - before);
       let reason: MergeItemOutcome["reason"];
-      if (requested > 0 && !available.has(productId)) { applied = 0; reason = "PRODUCT_UNAVAILABLE"; }
+      if (requested > 0 && !available.has(productId)) { applied = previous ? Math.min(requested, previous.applied) : 0; reason = "PRODUCT_UNAVAILABLE"; }
       else if (applied < requested) reason = "QUANTITY_LIMIT";
       if (!existing && before + applied > 0 && items.length >= MAX_CART_ITEMS) { applied = 0; reason = "ITEM_LIMIT"; }
       const after = before + applied;
@@ -144,10 +147,10 @@ export async function mergeLocalCartToUserCart(input: unknown) {
 export async function updateCartItemQuantity(input: unknown) {
   const user = await requireCartUser();
   const item = cartItemSchema.parse(input);
-  await requireProducts([item]);
-  return changeCart(user, (items) => {
+  return changeCart(user, async (items) => {
     const existing = items.find((entry) => entry.productId === item.productId);
     if (!existing) throw new CartError(404, "ITEM_NOT_FOUND", "Product not found in cart.");
+    if (item.quantity > existing.quantity) await requireProducts([item]);
     existing.quantity = item.quantity;
     return items;
   });

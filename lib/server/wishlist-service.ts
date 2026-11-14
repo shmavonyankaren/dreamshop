@@ -1,18 +1,18 @@
 import "server-only";
 import Wishlist from "../db/models/wishlist.model";
-import Product from "../db/models/product.model";
+import { eligibleProductsByIds } from "./product-eligibility";
 import { connectDB } from "../db/connection";
 import { requireAuthenticatedUser } from "./authenticated-user";
 import { CartError } from "../cart-contract";
 import { MAX_WISHLIST_ITEMS, wishlistMutationSchema, type WishlistDTO } from "../wishlist-contract";
-import { PRODUCT_FIELDS, toProductDTO, type ProductRecord } from "./product-dto";
+import type { ProductDTO } from "../cart-contract";
 
 async function readOwnedWishlist(owner: string): Promise<WishlistDTO> {
   const record = await Wishlist.findById(owner).select("products");
   const savedIds: string[] = (record?.products ?? []).map((id: { toString(): string }) => id.toString());
   if (!savedIds.length) return { products: [], unavailableIds: [], savedIds: [], count: 0 };
-  const records = await Product.find({ _id: { $in: savedIds } }).select(PRODUCT_FIELDS).populate({ path: "category", select: "_id name" }).limit(MAX_WISHLIST_ITEMS);
-  const byId = new Map<string, ReturnType<typeof toProductDTO>>(records.map((record: ProductRecord) => { const product = toProductDTO(record); return [product._id, product]; }));
+  const records = await eligibleProductsByIds(savedIds);
+  const byId = new Map<string, ProductDTO>(records.map(product => [product._id, product]));
   const products = [...savedIds].reverse().flatMap(id => byId.has(id) ? [byId.get(id)!] : []);
   return { products, savedIds, unavailableIds: savedIds.filter(id => !byId.has(id)), count: savedIds.length };
 }
@@ -28,7 +28,7 @@ export async function mutateWishlist(input: unknown) {
   if (action === "remove") {
     await Wishlist.updateOne({ _id: user.id }, { $pull: { products: productId } });
   } else {
-    if (!await Product.exists({ _id: productId })) throw new CartError(404, "PRODUCT_UNAVAILABLE", "This product is no longer available.");
+    if (!(await eligibleProductsByIds([productId])).length) throw new CartError(404, "PRODUCT_UNAVAILABLE", "This product is no longer available.");
     try { await Wishlist.updateOne({ _id: user.id }, { $setOnInsert: { products: [] } }, { upsert: true }); }
     catch (error) { if ((error as { code?: number }).code !== 11000) throw error; }
     // Capacity and deduplication are enforced in the same atomic document write.

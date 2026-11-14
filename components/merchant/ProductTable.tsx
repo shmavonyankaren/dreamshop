@@ -1,0 +1,11 @@
+import Link from "next/link";
+import Image from "next/image";
+import { Badge } from "@/components/ui/foundation";
+import { Button } from "@/components/ui/button";
+import { ProductStatusButton } from "./MerchantForms";
+import type { ProductDTO } from "@/lib/cart-contract";
+import { safeProductImage } from "@/lib/storefront-contract";
+export function ProductTable({ products }: { products: (ProductDTO & { status: string; moderationStatus: string; moderationReason: string; createdAt: string })[] }) {
+  if (!products.length) return <div className="rounded-xl border border-dashed border-border p-8 text-center"><h3>No products found</h3><p className="mt-2 text-sm text-muted-foreground">Add your first product or adjust your search.</p><Button asChild className="mt-4"><Link href="/merchant/products/new">Add product</Link></Button></div>;
+  return <div className="space-y-3">{products.map(p => <article key={p._id} className="grid min-w-0 gap-4 rounded-xl border border-border bg-card/60 p-4 md:grid-cols-[minmax(0,2fr)_minmax(0,1fr)_auto]"><div className="flex min-w-0 gap-3"><Image src={safeProductImage(p.imageUrl) ?? "/assets/electronics-studio.svg"} unoptimized alt={p.title} width={64} height={64} className="size-16 shrink-0 rounded-lg bg-muted object-contain" /><div className="min-w-0"><Link href={`/merchant/products/${p._id}/edit`} className="font-semibold break-words hover:underline">{p.title}</Link><p className="text-sm text-muted-foreground">{p.category?.name ?? "Uncategorized"}</p><p className="mt-1 text-xs text-muted-foreground">Created {p.createdAt.slice(0, 10)}</p></div></div><div className="flex flex-wrap items-center gap-3 md:block md:space-y-2"><p className="font-semibold">{p.price}</p><Badge tone={p.status === "archived" ? "neutral" : "success"}>{p.status === "archived" ? "Archived" : "Active"}</Badge><p className="mt-2 text-xs font-semibold">{p.moderationStatus === "held" ? "On administrative hold ? unavailable to customers" : "Moderation clear"}</p>{p.moderationStatus === "held" && <p className="break-words text-xs text-muted-foreground">{p.moderationReason}</p>}</div><div className="flex flex-wrap items-start gap-2"><Button asChild variant="outline"><Link href={`/merchant/products/${p._id}/edit`}>Edit</Link></Button><ProductStatusButton id={p._id} status={p.status} /></div></article>)}</div>;
+}

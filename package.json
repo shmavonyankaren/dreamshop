@@ -12,7 +12,11 @@
     "test:authorization": "node --test tests/authorization.test.cjs",
     "test:storefront": "node --test tests/storefront.test.cjs",
     "test:customer": "node --test tests/customer.test.cjs",
-    "test:ui": "node --test tests/ui-consistency.test.cjs"
+    "test:ui": "node --test tests/ui-consistency.test.cjs",
+    "test:merchant": "node --test tests/merchant.test.cjs",
+    "test:admin": "node --test tests/admin-storefront.test.cjs",
+    "test:readiness": "node --test tests/readiness.test.cjs",
+    "db:provision": "node scripts/provision-marketplace.cjs"
   },
   "dependencies": {
     "@clerk/nextjs": "^7.0.1",
@@ -35,6 +39,7 @@
     "react-hook-form": "^7.71.2",
     "resend": "^6.12.4",
     "shadcn": "^4.0.2",
+    "sharp": "0.34.5",
     "sonner": "^2.0.7",
     "svix": "^1.88.0",
     "tailwind-merge": "^3.5.0",

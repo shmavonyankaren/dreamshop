@@ -16,7 +16,10 @@ const UserSchema = new Schema({
   clerkUpdatedAt: Number,
   syncFingerprint: String,
   deletedAt: Date,
-}, { timestamps: true, autoIndex: false });
+}, { timestamps: true, autoIndex: false, autoCreate: false });
+UserSchema.index({ createdAt: -1, _id: -1 });
+UserSchema.index({ merchantStatus: 1, createdAt: -1, _id: -1 });
+UserSchema.index({ status: 1, applicationStatus: 1, merchantStatus: 1 });
 
 const User = models.User || model("User", UserSchema);
 

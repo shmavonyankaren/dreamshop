@@ -5,6 +5,7 @@ const fs = require("node:fs");
 const path = require("node:path");
 const vm = require("node:vm");
 const ts = require("typescript");
+const { aggregate: eligibilityAggregate, fixtures: eligibilityFixtures } = require("./helpers/eligibility-aggregate.cjs");
 const root = path.resolve(__dirname, "..");
 const A = "a".repeat(24), B = "b".repeat(24), P = "1".repeat(24), Q = "2".repeat(24);
 
@@ -12,7 +13,7 @@ const A = "a".repeat(24), B = "b".repeat(24), P = "1".repeat(24), Q = "2".repeat
 // route handlers, resolver, validation, services and DTO code are real.
 function fixture(shared = {}) {
   const state = shared.state ?? { clerkId: "clerk-a", mapped: true, fail: false, conflict: false, carts: new Map(), products: new Map(), queries: [] };
-  for (const id of [P, Q]) state.products.set(id, { _id: id, title: "Product", description: "Description", price: "10", imageUrl: "/product.png", tags: ["tag"], category: { _id: P, name: "Category", private: "hidden" }, owner: { email: "private@example.test", clerkId: "secret" }, __v: 7 });
+  for (const id of [P, Q]) state.products.set(id, { _id: id, title: "Product", description: "Description", price: "10", imageUrl: "/product.png", tags: ["tag"], category: { _id: P, name: "Category", private: "hidden" }, owner: A, store: A, status: "active", moderationStatus: "clear", __v: 7 });
   const query = (get) => ({ select() { return this; }, readConcern(value) { assert.equal(value, "majority"); return this; }, sort() { return this; }, populate() { this.populated = true; return this; }, then(resolve, reject) { return Promise.resolve().then(() => get(this.populated)).then(resolve, reject); } });
   const cartModel = {
     findOne(filter) {
@@ -22,7 +23,7 @@ function fixture(shared = {}) {
         const cart = state.carts.get(filter.user);
         if (!cart) return null;
         const copy = structuredClone(cart);
-        if (populated) copy.items = copy.items.map((item) => ({ ...item, product: state.products.get(item.product) ?? null }));
+        if (populated) copy.items = copy.items.map((item) => ({ ...item, product: state.products.get(item.product)?.status === "archived" ? null : state.products.get(item.product) ?? null }));
         return copy;
       });
     },
@@ -42,8 +43,10 @@ function fixture(shared = {}) {
     "lib/db/models/user.model.ts": { default: { findOne(filter) { assert.equal(filter.clerkId, state.clerkId); return query(() => state.mapped ? { _id: state.clerkId === "clerk-b" ? B : A, status: state.accountStatus, applicationStatus: state.applicationStatus, merchantStatus: state.merchantStatus, superAdmin: state.superAdmin } : null); } } },
     "lib/db/models/cart.model.ts": { default: cartModel },
     "lib/db/models/product.model.ts": { default: {
-      find(filter) { return query(() => [...state.products.values()].filter((product) => !filter?._id || filter._id.$in.includes(product._id))); },
+      aggregate(pipeline) { return { option: async () => eligibilityAggregate(pipeline, eligibilityFixtures(state.products.values())) }; },
+      find(filter) { return query(() => [...state.products.values()].filter((product) => (!filter?._id || filter._id.$in.includes(product._id)) && (!filter?.status || product.status !== filter.status.$ne))); },
       findById(id) { return query(() => state.products.get(id)); },
+      findOne(filter) { return query(() => [...state.products.values()].find(p => p._id === filter._id && (!filter.status || p.status !== filter.status.$ne)) ?? null); },
     } },
   };
   const cache = new Map();
@@ -488,4 +491,25 @@ test("receipt schema preserves atomic outcome fields and declares the existing u
   assert.equal(record.toObject().mergeReceipts[0].version, 0);
   assert.deepEqual(record.toObject().mergeReceipts[0].outcome.items, []);
   mongoose.deleteModel("Cart");
+});
+
+test("archived cart products retain safe placeholders and reject new additions", async () => { const f = fixture(); const service = f.load("@/lib/actions/cart.actions.ts"); await service.addToCart({ productId: P, quantity: 2 }); f.state.products.get(P).status = "archived"; assert.equal((await service.getCartByUser()).items[0].available, false); assert.equal((await service.getCartByUser()).items[0].product.title, "Unavailable product"); assert.equal((await f.call("add", { productId: P, quantity: 1 })).status, 404); assert.equal(f.state.carts.get(A).items[0].product, P); f.state.products.get(P).status = "active"; assert.equal((await service.getCartByUser()).items[0].quantity, 2); });
+
+test("held cart rows reject increases but permit decreases and removal without leaking moderation", async () => {
+  const f = fixture(); await f.call("add", { productId: P, quantity: 3 });
+  Object.assign(f.state.products.get(P), { moderationStatus: "held", moderationReason: "private moderation explanation" });
+  assert.equal((await f.call("update", { productId: P, quantity: 4 })).status, 404);
+  assert.equal((await f.call("update", { productId: P, quantity: 2 })).status, 200);
+  const cart = await f.load("@/lib/actions/cart.actions.ts").getCartByUser();
+  assert.equal(cart.items[0].quantity, 2); assert.equal(cart.items[0].available, false);
+  assert(!JSON.stringify(cart).includes("moderation")); assert(!JSON.stringify(cart).includes("private"));
+  assert.equal((await f.call("remove", { productId: P })).status, 200);
+});
+test("unavailable follow-up merge preserves previous contribution without accepting an increase", async () => {
+  const f = fixture(), first = operation([{ productId: P, quantity: 3 }]); await f.call("merge", first);
+  f.state.products.get(P).moderationStatus = "held";
+  const next = operation([{ productId: P, quantity: 5 }], { parentOperationId: first.operationId });
+  const result = await (await f.call("merge", next)).json();
+  assert.equal(result.count, 3); assert.equal(result.reconciliation.items[0].reason, "PRODUCT_UNAVAILABLE");
+  assert.equal((await (await f.call("merge", next)).json()).count, 3);
 });

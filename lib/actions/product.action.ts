@@ -1,8 +1,8 @@
 "use server";
 import { connectDB } from "../db/connection";
-import Product from "../db/models/product.model";
+import { eligibleProductsByIds, eligibleProductRecords, objectId } from "../server/product-eligibility";
 import { productIdSchema } from "../cart-contract";
-import { PRODUCT_FIELDS, toProductDTO, type ProductRecord } from "../server/product-dto";
+import { toProductDTO, type ProductRecord } from "../server/product-dto";
 import { marketplaceResult } from "../server/marketplace-response";
 import { createOwnedProduct, updateOwnedProduct, deleteOwnedProduct, deleteOwnedProducts, deleteAllOwnedProducts } from "../server/product-service";
 
@@ -19,7 +19,7 @@ export async function adminDeleteProducts(input: unknown) { return marketplaceRe
 export async function getAllProducts() {
   try {
     await connectDB();
-    const products = await Product.find().select(PRODUCT_FIELDS).populate({ path: "category", select: "_id name" }).sort({ createdAt: -1 });
+    const products = await eligibleProductRecords({}, { limit: 48 });
     return products.map((product: ProductRecord) => toProductDTO(product));
   } catch { throw new Error("Unable to load products. Please retry."); }
 }
@@ -27,15 +27,14 @@ export async function getProductById(id: string) {
   try {
     const productId = productIdSchema.parse(id);
     await connectDB();
-    const product = await Product.findById(productId).select(PRODUCT_FIELDS).populate({ path: "category", select: "_id name" });
-    return product ? toProductDTO(product) : null;
+    return (await eligibleProductsByIds([productId]))[0] ?? null;
   } catch { throw new Error("Unable to load this product. Please retry."); }
 }
 export async function getProductsByUser(id: string) {
   try {
     const userId = productIdSchema.parse(id);
     await connectDB();
-    const products = await Product.find({ owner: userId }).select(PRODUCT_FIELDS).populate({ path: "category", select: "_id name" }).sort({ createdAt: -1 });
+    const products = await eligibleProductRecords({ owner: objectId(userId) }, { limit: 48 });
     return products.map((product: ProductRecord) => toProductDTO(product));
   } catch { throw new Error("Unable to load products. Please retry."); }
 }
