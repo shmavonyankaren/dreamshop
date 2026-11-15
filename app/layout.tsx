@@ -7,6 +7,8 @@ import { PublicShell } from "@/components/layout/PublicShell";
 import { WishlistProvider } from "@/components/customer/WishlistProvider";
 import { Toaster } from "@/components/ui/sonner";
 export const metadata: Metadata = {
+  applicationName: "Dreamshop",
+  appleWebApp: { title: "Dreamshop" },
   title: { default: "Dreamshop", template: "%s | Dreamshop" },
   description: "Discover products and explore Dreamshop.",
 };
