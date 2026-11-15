@@ -2,7 +2,7 @@ export type MerchantStatus = "none" | "pending" | "approved" | "rejected" | "sus
 export type ApplicationStatus = "active" | "suspended";
 export type Capability = "customer:access" | "merchant:access" | "product:create" |
   "product:update:own" | "product:delete:own" | "product:manage:any" |
-  "category:manage" | "merchant:approve" | "users:manage";
+  "currency:manage" | "category:manage" | "merchant:approve" | "users:manage";
 export class AuthorizationError extends Error {
   constructor(public status: number, public code: string, message: string) { super(message); }
 }

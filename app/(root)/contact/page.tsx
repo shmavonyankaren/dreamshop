@@ -1,17 +1,134 @@
 import Link from "next/link";
-import { Mail, Phone, MessageCircle, Clock, MapPin, CircleHelp, ArrowRight, Search, ShoppingCart, UserRound } from "lucide-react";
+import {
+  Mail,
+  Phone,
+  MessageCircle,
+  Clock,
+  MapPin,
+  CircleHelp,
+  ArrowRight,
+  Search,
+  ShoppingCart,
+  UserRound,
+} from "lucide-react";
 import { MarketingHero } from "@/components/shared/MarketingHero";
 import { MarketingCard } from "@/components/shared/MarketingCard";
 import ContactForm from "@/components/contact/ContactForm";
 import { storefrontMetadata } from "@/lib/storefront-metadata";
-export const metadata = storefrontMetadata("Contact Dreamshop", "Get in touch with Dreamshop using our contact form or existing contact channels.", "/contact");
+export const metadata = storefrontMetadata(
+  "Contact Dreamshop",
+  "Get in touch with Dreamshop using our contact form or existing contact channels.",
+  "/contact",
+);
 export default function ContactUs() {
-  return <div className="ds-container marketing-page marketing-contact">
-    <MarketingHero label="Contact Us" title={<>We?re Here to <span className="text-primary">Help</span></>} description="Have a question, need help with the marketplace, or want to share feedback? Get in touch with Dreamshop using the form or contact details below." />
-    <div className="grid items-start gap-4 lg:grid-cols-[.95fr_1.45fr]"><ContactForm /><div className="grid gap-4">
-      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3"><MarketingCard icon={Mail} title="Email Us"><p>Send your questions by email.</p><a href="mailto:2003.karen.shmavonyan@gmail.com" className="mt-3 block rounded-lg bg-accent px-3 py-2 font-semibold text-accent-foreground break-all">2003.karen.shmavonyan@gmail.com</a></MarketingCard><MarketingCard icon={Phone} title="Call Us"><p>Use our published contact number.</p><a href="tel:+37495726678" className="mt-3 block rounded-lg bg-accent px-3 py-2 font-semibold text-accent-foreground">+374 (95) 72-66-78</a></MarketingCard><MarketingCard icon={MessageCircle} title="Live Chat"><p>Live chat is not currently available.</p><span className="mt-3 inline-block rounded-lg bg-secondary px-3 py-2 text-xs font-semibold">Please use email or the form</span></MarketingCard></div>
-      <div className="grid gap-3 sm:grid-cols-2"><MarketingCard icon={Clock} title="Support Availability"><p>Fixed support hours are not published. You can send a message at any time; no response time is guaranteed.</p></MarketingCard><MarketingCard icon={MapPin} title="Contact from Anywhere"><p>Use the online form wherever you are. No public office address or regional support service is currently listed.</p></MarketingCard></div>
-      <section className="ds-panel p-5"><div className="flex flex-wrap items-center justify-between gap-3"><div className="flex items-center gap-3"><span className="marketing-icon"><CircleHelp /></span><div><h2>Quick Help: Common Questions</h2><p className="text-sm text-muted-foreground">A few answers before you get in touch.</p></div></div><Link href="/faq" className="inline-flex min-h-11 items-center gap-2 text-sm font-semibold text-primary">View FAQ<ArrowRight className="size-4" /></Link></div><div className="mt-4 grid gap-3 sm:grid-cols-3">{[{icon:Search,title:'How do I find products?',text:'Search the catalog by title, description, or tags and filter by category.'},{icon:ShoppingCart,title:'Can I save a cart as a guest?',text:'Yes. Guest items are saved on this browser and synchronized when you sign in.'},{icon:UserRound,title:'How do I manage my account?',text:'Use the account control in the header to access your Clerk profile.'}].map(({icon:Icon,title,text}) => <details key={title} className="rounded-xl border border-border p-3"><summary className="cursor-pointer text-sm font-semibold"><Icon className="mb-2 size-5" aria-hidden="true" />{title}</summary><p className="mt-3 text-xs text-muted-foreground">{text}</p></details>)}</div></section>
-    </div></div>
-  </div>;
+  return (
+    <div className="ds-container marketing-page marketing-contact">
+      <MarketingHero
+        label="Contact Us"
+        title={
+          <>
+            We?re Here to <span className="text-primary">Help</span>
+          </>
+        }
+        description="Have a question, need help with the marketplace, or want to share feedback? Get in touch with Dreamshop using the form or contact details below."
+      />
+      <div className="grid items-start gap-4 lg:grid-cols-[.95fr_1.45fr]">
+        <ContactForm />
+        <div className="grid gap-4">
+          <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+            <MarketingCard icon={Mail} title="Email Us">
+              <p>Send your questions by email.</p>
+              <a
+                href="mailto:2003.karen.shmavonyan@gmail.com"
+                className="mt-3 block rounded-lg bg-accent px-3 py-2 font-semibold text-accent-foreground break-all"
+              >
+                2003.karen.shmavonyan@gmail.com
+              </a>
+            </MarketingCard>
+            <MarketingCard icon={Phone} title="Call Us">
+              <p>Use our published contact number.</p>
+              <a
+                href="tel:+37495726678"
+                className="mt-3 block rounded-lg bg-accent px-3 py-2 font-semibold text-accent-foreground"
+              >
+                +374 (95) 72-66-78
+              </a>
+            </MarketingCard>
+            <MarketingCard icon={MessageCircle} title="Live Chat">
+              <p>Live chat is not currently available.</p>
+              <span className="mt-3 inline-block rounded-lg bg-secondary px-3 py-2 text-xs font-semibold">
+                Please use email or the form
+              </span>
+            </MarketingCard>
+          </div>
+          <div className="grid gap-3 sm:grid-cols-2">
+            <MarketingCard icon={Clock} title="Support Availability">
+              <p>
+                Fixed support hours are not published. You can send a message at
+                any time; no response time is guaranteed.
+              </p>
+            </MarketingCard>
+            <MarketingCard icon={MapPin} title="Contact from Anywhere">
+              <p>
+                Use the online form wherever you are. No public office address
+                or regional support service is currently listed.
+              </p>
+            </MarketingCard>
+          </div>
+          <section className="ds-panel p-5">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div className="flex items-center gap-3">
+                <span className="marketing-icon">
+                  <CircleHelp />
+                </span>
+                <div>
+                  <h2>Quick Help: Common Questions</h2>
+                  <p className="text-sm text-muted-foreground">
+                    A few answers before you get in touch.
+                  </p>
+                </div>
+              </div>
+              <Link
+                href="/faq"
+                className="inline-flex min-h-11 items-center gap-2 text-sm font-semibold text-primary"
+              >
+                View FAQ
+                <ArrowRight className="size-4" />
+              </Link>
+            </div>
+            <div className="mt-4 grid gap-3 sm:grid-cols-3">
+              {[
+                {
+                  icon: Search,
+                  title: "How do I find products?",
+                  text: "Search the catalog by title, description, or tags and filter by category.",
+                },
+                {
+                  icon: ShoppingCart,
+                  title: "Can I save a cart as a guest?",
+                  text: "Yes. Guest items are saved on this browser and synchronized when you sign in.",
+                },
+                {
+                  icon: UserRound,
+                  title: "How do I manage my account?",
+                  text: "Use the account control in the header to access your Clerk profile.",
+                },
+              ].map(({ icon: Icon, title, text }) => (
+                <details
+                  key={title}
+                  className="rounded-xl border border-border p-3"
+                >
+                  <summary className="cursor-pointer text-sm font-semibold">
+                    <Icon className="mb-2 size-5" aria-hidden="true" />
+                    {title}
+                  </summary>
+                  <p className="mt-3 text-xs text-muted-foreground">{text}</p>
+                </details>
+              ))}
+            </div>
+          </section>
+        </div>
+      </div>
+    </div>
+  );
 }

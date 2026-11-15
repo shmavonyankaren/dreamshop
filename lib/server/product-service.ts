@@ -1,4 +1,5 @@
 import "server-only";
+import { requireEnabledPrice } from "./currency-service";
 import { z } from "zod";
 import type { ClientSession } from "mongoose";
 import Product from "../db/models/product.model";
@@ -25,6 +26,7 @@ export async function createOwnedProduct(input: unknown) {
     await requireCategory(product.category, session);
     const store = await ownedStore(actor, session);
     await requireStoreImage(product.imageUrl, String(store._id), session);
+    await requireEnabledPrice(product, null, session);
     const [created] = await Product.create([{ ...product, owner: actor.id, store: store._id, status: "active", moderationStatus: "clear", moderationRevision: 0 }], { session });
     const result = await Product.findById(created._id).session(session).select(PRODUCT_FIELDS).populate({ path: "category", select: "_id name" });
     return toProductDTO(result);
@@ -36,6 +38,11 @@ export async function updateOwnedProduct(input: unknown, administrative = false)
     if (product.category) await requireCategory(product.category, session);
     const scope = administrative ? {} : await ownScope(actor, session);
     if (!administrative && "store" in scope && product.imageUrl) await requireStoreImage(product.imageUrl, String(scope.store), session);
+    if (product.price !== undefined) {
+      const previous = await Product.findOne({ _id: productId, ...scope }).session(session);
+      if (!previous) throw notFound();
+      await requireEnabledPrice(product, previous, session);
+    }
     if (administrative) {
       const before = await Product.findOne({ _id: productId }).session(session);
       if (!before) throw notFound();

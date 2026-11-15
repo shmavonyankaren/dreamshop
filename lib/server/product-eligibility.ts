@@ -22,7 +22,7 @@ export function eligibilityPipeline(filter: Record<string, unknown> = {}): Pipel
 }
 const publicProjection: PipelineStage[] = [
   { $lookup: { from: "categories", localField: "category", foreignField: "_id", as: "eligibleCategory" } },
-  { $project: { _id: 1, title: 1, description: 1, imageUrl: 1, price: 1, tags: 1, category: { $arrayElemAt: ["$eligibleCategory", 0] }, publicStore: { name: "$eligibleStore.name", slug: "$eligibleStore.slug" } } },
+  { $project: { _id: 1, title: 1, description: 1, imageUrl: 1, price: 1, priceCents: 1, currency: 1, tags: 1, category: { $arrayElemAt: ["$eligibleCategory", 0] }, publicStore: { name: "$eligibleStore.name", slug: "$eligibleStore.slug" } } },
 ];
 export async function countEligibleProducts(filter: Record<string, unknown> = {}) {
   await connectDB();

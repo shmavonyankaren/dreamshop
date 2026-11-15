@@ -1,4 +1,5 @@
 import "server-only";
+import { requireEnabledPrice } from "./currency-service";
 import { z } from "zod";
 import Product from "../db/models/product.model";
 import Category from "../db/models/category.model";
@@ -34,6 +35,9 @@ export async function saveMerchantProduct(input: unknown) {
     const store = await ownedStore(actor, session);
     if (!await Category.exists({ _id: product.category }).session(session)) throw new AuthorizationError(400, "INVALID_CATEGORY", "Select an existing category.");
     await requireStoreImage(product.imageUrl, String(store._id), session);
+    const previous = id ? await Product.findOne({ _id: id, store: store._id, owner: actor.id }).session(session) : null;
+    if (id && !previous) throw new AuthorizationError(404, "NOT_FOUND", "Product not found.");
+    await requireEnabledPrice(product, previous, session);
     if (id) {
       const result = await Product.updateOne({ _id: id, store: store._id, owner: actor.id }, { $set: product, $inc: { __v: 1 } }, { session, runValidators: true });
       if (!result.matchedCount) throw new AuthorizationError(404, "NOT_FOUND", "Product not found.");

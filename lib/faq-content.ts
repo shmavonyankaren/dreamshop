@@ -8,7 +8,7 @@ export const faqGroups = [
   { id: "cart-wishlist", title: "Cart & wishlist", items: [
     { question: "Do I need an account to browse or use the cart?", answer: "You can browse and use a guest cart without signing in. Guest items are stored in this browser. When you sign in, Dreamshop synchronizes them with your account cart; any synchronization issues are shown for review." },
     { question: "How do I save a product to my wishlist?", answer: "Sign in and select a product’s heart button. Your wishlist is saved to your account and can hold up to 500 saved entries. You can remove items or add available products to your cart from the wishlist page." },
-    { question: "Why is the cart subtotal unavailable?", answer: "Products currently have listed prices but no shared currency definition. Dreamshop does not calculate a payable subtotal until pricing and currency support are established. Checkout remains unavailable." },
+    { question: "Why is the cart subtotal unavailable?", answer: "Prices show each product’s saved currency. A subtotal is available only when all available cart items have confirmed prices in the same currency. Mixed currencies are not converted. Older listings marked currency unspecified require explicit merchant repricing. Shipping, taxes and checkout remain unavailable." },
     { question: "What if a saved product disappears?", answer: "A product removed from the catalog is shown as unavailable in your wishlist. You can remove that saved entry. Cart synchronization feedback explains items that need attention; review it before dismissing saved reconciliation details." },
   ] },
   { id: "account-help", title: "Account & help", items: [

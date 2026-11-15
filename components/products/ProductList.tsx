@@ -46,6 +46,8 @@ export default function ProductList({
             title={title}
             category={category}
             price={price}
+            priceCents={product.priceCents}
+            currency={product.currency}
             image={imageSrc}
             description={description}
             tags={tags}

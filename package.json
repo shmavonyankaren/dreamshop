@@ -13,10 +13,11 @@
     "test:storefront": "node --test tests/storefront.test.cjs",
     "test:customer": "node --test tests/customer.test.cjs",
     "test:ui": "node --test tests/ui-consistency.test.cjs tests/account-navigation.test.cjs",
-    "test:merchant": "node --test tests/merchant.test.cjs",
+    "test:merchant": "node --test tests/merchant.test.cjs tests/product-pricing.test.cjs",
     "test:admin": "node --test tests/admin-storefront.test.cjs",
     "test:readiness": "node --test tests/readiness.test.cjs",
-    "db:provision": "node scripts/provision-marketplace.cjs"
+    "db:provision": "node scripts/provision-marketplace.cjs",
+    "test:currencies": "node --test tests/currencies.test.cjs tests/product-pricing.test.cjs"
   },
   "dependencies": {
     "@clerk/nextjs": "^7.0.1",

@@ -1,5 +1,6 @@
+import { formatPrice } from "@/lib/money";
 import Image from "next/image";
-import { Minus, Plus, ShoppingCart, Trash2 } from "lucide-react";
+import { Minus, Plus, Trash2 } from "lucide-react";
 import AddCartButton from "./AddCartButton";
 
 type ProductCardProps = {
@@ -7,6 +8,8 @@ type ProductCardProps = {
   title: string;
   category: string | { _id?: string; name?: string } | null;
   price: string;
+  priceCents?: number;
+  currency?: string;
   description: string;
   image: string;
   tags: string[];
@@ -24,6 +27,8 @@ export default function ProductCard({
   title,
   category,
   price,
+  priceCents,
+  currency,
   description,
   image,
   tags,
@@ -74,7 +79,7 @@ export default function ProductCard({
       <div className="mt-4 grid grid-cols-[1fr_auto] items-center gap-4">
         <h2 className="text-xl font-extrabold text-body-primary">{title}</h2>
         <p className="rounded-full bg-badge-accent-bg px-4 py-1 text-sm font-bold text-badge-accent-fg">
-          {price}
+          {formatPrice({ price, priceCents, currency })}
         </p>
       </div>
       <p className="mt-3 line-clamp-3 text-[15px] leading-7 text-body-tertiary">

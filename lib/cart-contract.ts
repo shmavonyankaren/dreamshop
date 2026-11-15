@@ -30,6 +30,8 @@ export type ProductDTO = {
   description: string;
   imageUrl: string;
   price: string;
+  priceCents?: number;
+  currency?: string;
   tags: string[];
   category: { _id: string; name: string } | null;
 };

@@ -5,6 +5,7 @@ const ControlSchema = new Schema({
   _id: String,
   revision: { type: Number, default: 0 },
   bootstrapCompleted: { type: Boolean, default: false },
+  currencySettings: { type: new Schema({ enabled: [String], defaultCurrency: String, revision: Number }, { _id: false }), default: undefined },
 }, { autoIndex: false, autoCreate: false, collection: "authorization_controls" });
 const AuditSchema = new Schema({
   actor: { type: String, required: true },
@@ -19,5 +20,9 @@ const AuditSchema = new Schema({
 }, { autoIndex: false, autoCreate: false, collection: "authorization_audits" });
 AuditSchema.index({ at: -1, _id: -1 });
 AuditSchema.index({ target: 1, at: -1, _id: -1 });
+if (models.AuthorizationControl) {
+  models.AuthorizationControl.schema.add({ currencySettings: ControlSchema.obj.currencySettings });
+  models.AuthorizationControl.recompileSchema();
+}
 export const AuthorizationControl = models.AuthorizationControl || model("AuthorizationControl", ControlSchema);
 export const AuthorizationAudit = models.AuthorizationAudit || model("AuthorizationAudit", AuditSchema);

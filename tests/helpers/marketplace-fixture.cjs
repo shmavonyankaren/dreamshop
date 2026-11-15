@@ -6,7 +6,7 @@ const { AsyncLocalStorage } = require("node:async_hooks");
 const { bootstrapSuperAdmin } = require("../../scripts/bootstrap-super-admin.cjs");
 const root = path.resolve(__dirname, "../.."), A = "a".repeat(24), B = "b".repeat(24), D = "d".repeat(24);
 const P = "1".repeat(24), Q = "2".repeat(24), O = "3".repeat(24), C = "4".repeat(24), E = "5".repeat(24);
-const product = (extra = {}) => ({ title: "Item", description: "Description", imageUrl: "/api/store-images/666666666666666666666666", price: "12.50", category: C, tags: ["test"], ...extra });
+const product = (extra = {}) => ({ title: "Item", description: "Description", imageUrl: "/api/store-images/666666666666666666666666", price: "12.50", currency: "EUR", category: C, tags: ["test"], ...extra });
 function matches(record, filter = {}) {
   return Object.entries(filter).every(([key, value]) => {
     if (key === "$or") return value.some(part => matches(record, part));
@@ -29,7 +29,7 @@ function fixture() {
   for (const [id, clerkId] of [[A, "clerk-a"], [B, "clerk-b"], [D, "clerk-d"]]) state.users.set(id,
     { _id: id, clerkId, status: "active", applicationStatus: "active", merchantStatus: "none", superAdmin: false, __v: 0 });
   state.categories.set(C, { _id: C, name: "Category", private: "secret" }); state.categories.set(E, { _id: E, name: "Empty" });
-  for (const [id, owner] of [[P, A], [Q, B], [O, undefined]]) state.products.set(id, { _id: id, ...product(), owner, store: owner, status: "active", moderationStatus: "clear", moderationRevision: 0, __v: 0 });
+  for (const [id, owner] of [[P, A], [Q, B], [O, undefined]]) state.products.set(id, { _id: id, ...product({ currency: undefined }), owner, store: owner, status: "active", moderationStatus: "clear", moderationRevision: 0, __v: 0 });
   let counter = 100, queue = Promise.resolve();
   function query(get, kind) {
     const log = { kind }; state.readLog.push(log);
@@ -107,6 +107,7 @@ function fixture() {
     const result = queue.then(execute); queue = result.catch(() => {}); return result;
   }
   const control = {
+    findOne() { return query(() => state.control, "control"); },
     async updateOne(filter, update, options) {
       assert.equal(filter._id, "marketplace");
       if (!state.control && options.upsert) state.control = { _id: "marketplace", ...update.$setOnInsert };

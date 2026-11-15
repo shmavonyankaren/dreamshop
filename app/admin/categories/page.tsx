@@ -1,9 +1,84 @@
 import Link from "next/link";
 import { adminCategories } from "@/lib/server/admin-queries";
-import { AdminHero, AdminFilters, AdminPagination } from "@/components/admin/AdminShared";
-import { CategoryEditor, ConfirmAdminAction } from "@/components/admin/AdminActions";
+import {
+  AdminHero,
+  AdminFilters,
+  AdminPagination,
+} from "@/components/admin/AdminShared";
+import {
+  CategoryEditor,
+  ConfirmAdminAction,
+} from "@/components/admin/AdminActions";
 import type { SearchParams } from "@/lib/storefront-contract";
-export default async function CategoriesPage({ searchParams }: { searchParams: Promise<SearchParams> }) {
+export default async function CategoriesPage({
+  searchParams,
+}: {
+  searchParams: Promise<SearchParams>;
+}) {
   const data = await adminCategories(await searchParams);
-  return <><AdminHero title="Category Management" description="Create and organize the categories used by marketplace products. Referenced categories are protected from deletion."><CategoryEditor /></AdminHero><div className="grid min-w-0 gap-5 xl:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]"><section className="ds-panel min-w-0 space-y-5 p-5"><h2 className="text-xl">Category list · {data.total}</h2><AdminFilters query={data.query} categoryOnly />{!data.rows.length && <p className="py-8 text-center text-muted-foreground">No matching categories. Create a category to get started.</p>}<div className="space-y-3">{data.rows.map(c => <article key={c.id} className="flex flex-wrap items-center justify-between gap-4 rounded-xl border border-border p-4"><div className="min-w-0"><h3 className="break-words">{c.name}</h3><Link href={`/admin/products?category=${c.id}`} className="text-sm text-primary underline">{c.productCount} associated products</Link></div><div className="flex flex-wrap gap-2"><CategoryEditor category={c} /><ConfirmAdminAction kind="category-delete" id={c.id} label="Delete" description={`Delete “${c.name}”? Products, including archived products, must be reassigned first. This cannot be undone.`} /></div></article>)}</div><AdminPagination path="/admin/categories" data={data} /></section><aside className="ds-panel self-start space-y-4 p-5"><h2 className="text-xl">Category structure</h2><p className="text-sm text-muted-foreground">Dreamshop currently uses a flat category list. A category may contain products from multiple merchants.</p><p className="text-sm text-muted-foreground">Nested categories, slugs and category visibility states require a future taxonomy migration. Those fields are not currently stored.</p><h3>Deletion protection</h3><p className="text-sm text-muted-foreground">Even archived products keep their category reference. Reassign them before deleting a category.</p></aside></div></>;
+  return (
+    <>
+      <AdminHero
+        title="Category Management"
+        description="Create and organize the categories used by marketplace products. Referenced categories are protected from deletion."
+      >
+        <CategoryEditor />
+      </AdminHero>
+      <div className="grid min-w-0 gap-5 xl:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]">
+        <section className="ds-panel min-w-0 space-y-5 p-5">
+          <h2 className="text-xl">Category list · {data.total}</h2>
+          <AdminFilters query={data.query} categoryOnly />
+          {!data.rows.length && (
+            <p className="py-8 text-center text-muted-foreground">
+              No matching categories. Create a category to get started.
+            </p>
+          )}
+          <div className="space-y-3">
+            {data.rows.map((c) => (
+              <article
+                key={c.id}
+                className="flex flex-wrap items-center justify-between gap-4 rounded-xl border border-border p-4"
+              >
+                <div className="min-w-0">
+                  <h3 className="break-words">{c.name}</h3>
+                  <Link
+                    href={`/admin/products?category=${c.id}`}
+                    className="text-sm text-primary underline"
+                  >
+                    {c.productCount} associated products
+                  </Link>
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  <CategoryEditor category={c} />
+                  <ConfirmAdminAction
+                    kind="category-delete"
+                    id={c.id}
+                    label="Delete"
+                    description={`Delete “${c.name}”? Products, including archived products, must be reassigned first. This cannot be undone.`}
+                  />
+                </div>
+              </article>
+            ))}
+          </div>
+          <AdminPagination path="/admin/categories" data={data} />
+        </section>
+        <aside className="ds-panel self-start space-y-4 p-5">
+          <h2 className="text-xl">Category structure</h2>
+          <p className="text-sm text-muted-foreground">
+            Dreamshop currently uses a flat category list. A category may
+            contain products from multiple merchants.
+          </p>
+          <p className="text-sm text-muted-foreground">
+            Nested categories, slugs and category visibility states require a
+            future taxonomy migration. Those fields are not currently stored.
+          </p>
+          <h3>Deletion protection</h3>
+          <p className="text-sm text-muted-foreground">
+            Even archived products keep their category reference. Reassign them
+            before deleting a category.
+          </p>
+        </aside>
+      </div>
+    </>
+  );
 }

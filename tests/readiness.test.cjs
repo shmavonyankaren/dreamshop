@@ -100,9 +100,11 @@ test("product image delivery enforces availability but allows private owner/admi
 test("new Product schema requires store/owner and defaults to clear moderation", () => {
   const fs = require("node:fs"), ts = require("typescript"), vm = require("node:vm"), mongoose = require("mongoose");
   const source = ts.transpileModule(fs.readFileSync("lib/db/models/product.model.ts", "utf8"), { compilerOptions: { module: ts.ModuleKind.CommonJS } }).outputText;
-  const loadedModel = { exports: {} }; vm.runInThisContext(`(function(require,module,exports){${source}})`)(name => name.startsWith(".") ? {} : require(name), loadedModel, loadedModel.exports);
+  const loadedModel = { exports: {} }; vm.runInThisContext(`(function(require,module,exports){${source}})`)(name => name === "../../money" ? fixture().load("@/lib/money") : name.startsWith(".") ? {} : require(name), loadedModel, loadedModel.exports);
   const Model = loadedModel.exports.default, invalid = new Model(product()); assert(invalid.validateSync().errors.store); assert(invalid.validateSync().errors.owner);
-  const valid = new Model({ ...product(), store: A, owner: A }); assert.equal(valid.validateSync(), undefined); assert.equal(valid.moderationStatus, "clear"); assert.equal(valid.moderationRevision, 0); assert.equal(Model.schema.options.autoIndex, false); mongoose.deleteModel("Product");
+  const valid = new Model({ ...product(), priceCents: 1250, store: A, owner: A }); assert.equal(valid.validateSync(), undefined); assert.equal(valid.moderationStatus, "clear"); assert.equal(valid.moderationRevision, 0); assert.equal(Model.schema.options.autoIndex, false); for (const fields of [{ priceCents: 1.5 }, { priceCents: -1 }, { priceCents: 1000000000 }, { currency: "ZZZ", priceCents: 1250 }, { currency: undefined, priceCents: 1250 }]) assert(new Model({ ...product(), store: A, owner: A, ...fields }).validateSync());
+  assert.equal(new Model({ ...product({ currency: undefined }), store: A, owner: A }).validateSync(), undefined);
+  mongoose.deleteModel("Product");
 });
 const args = ["--environment", "staging", "--database", "dreamshop_staging", "--confirm-database", "dreamshop_staging", "--check"];
 const env = { MONGODB_URI: "mongodb://127.0.0.1:27017/dreamshop_staging" };
