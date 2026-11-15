@@ -52,7 +52,7 @@ function fixture(shared = {}) {
   const cache = new Map();
   const storage = shared.storage ?? new Map();
   const localStorage = { getItem: (key) => storage.get(key) ?? null, setItem: (key, value) => storage.set(key, value), removeItem: (key) => storage.delete(key) };
-  const locks = shared.locks ?? (() => { let tail = Promise.resolve(); return { request(_name, action) { const result = tail.then(action); tail = result.catch(() => {}); return result; } }; })();
+  const locks = shared.locks ?? (() => { const tails = new Map(); return { request(name, action) { const result = (tails.get(name) ?? Promise.resolve()).then(action); tails.set(name, result.catch(() => {})); return result; } }; })();
   const events = new EventTarget();
   const browser = { fetch: (...args) => fetch(...args) };
   function load(spec, parent = path.join(root, "index.ts")) {
@@ -512,4 +512,65 @@ test("unavailable follow-up merge preserves previous contribution without accept
   const result = await (await f.call("merge", next)).json();
   assert.equal(result.count, 3); assert.equal(result.reconciliation.items[0].reason, "PRODUCT_UNAVAILABLE");
   assert.equal((await (await f.call("merge", next)).json()).count, 3);
+});
+
+test("stale quantity edits cannot overwrite a concurrent update",async()=>{
+  const f=fixture();await f.call("add",{productId:P,quantity:1,expectedQuantity:0});
+  assert.equal((await f.call("update",{productId:P,quantity:3,expectedQuantity:1})).status,200);
+  assert.equal((await f.call("update",{productId:P,quantity:2,expectedQuantity:1})).status,409);assert.equal(f.state.carts.get(A).items[0].quantity,3);
+  assert.equal((await f.call("add",{productId:P,quantity:1,expectedQuantity:0})).status,409);assert.equal(f.state.carts.get(A).items[0].quantity,3);
+});
+test("quantity preconditions are strict and cannot carry identity",async()=>{
+  const f=fixture();await f.call("add",{productId:P});for(const extra of [{expectedQuantity:0},{expectedQuantity:"1"},{expectedQuantity:100},{expectedQuantity:1,userId:B}])assert.equal((await f.call("update",{productId:P,quantity:2,...extra})).status,400);
+});
+test("simultaneous browser tabs step from latest server quantities without lost increments",async()=>{
+  const a=fixture(),b=fixture({state:a.state,storage:a.storage,locks:a.locks});connectBrowser(a);connectBrowser(b);
+  for(const f of [a,b])f.load("@/lib/utils/cartClient.ts").setCartSession("clerk-a");
+  const first=a.load("@/lib/utils/cart-quantity.ts"),second=b.load("@/lib/utils/cart-quantity.ts");
+  await Promise.all([first.changeStorefrontQuantity("clerk-a",P,{type:"add"}),second.changeStorefrontQuantity("clerk-a",P,{type:"add"})]);assert.equal(a.state.carts.get(A).items[0].quantity,1);
+  await Promise.all(Array.from({length:8},(_,i)=>(i%2?first:second).changeStorefrontQuantity("clerk-a",P,{type:"step",delta:1})));
+  assert.equal(a.state.carts.get(A).items[0].quantity,9);assert(a.storage.has("dreamshop-cart-changed"));
+});
+test("stale direct input is rejected while known step conflicts safely retry",async()=>{
+  const f=fixture();const client=f.load("@/lib/utils/cartClient.ts");client.setCartSession("clerk-a");const service=f.load("@/lib/utils/cart-quantity.ts");connectBrowser(f);
+  await service.changeStorefrontQuantity("clerk-a",P,{type:"add"});await service.changeStorefrontQuantity("clerk-a",P,{type:"step",delta:1});
+  await assert.rejects(service.changeStorefrontQuantity("clerk-a",P,{type:"set",quantity:8,expectedQuantity:1}),/changed/);assert.equal(f.state.carts.get(A).items[0].quantity,2);
+  let conflicted=false;connectBrowser(f,async(route,body,send)=>{if(route==="update"&&!conflicted){conflicted=true;await f.call("update",{productId:P,quantity:5});}return send();});
+  await service.changeStorefrontQuantity("clerk-a",P,{type:"step",delta:1});assert.equal(f.state.carts.get(A).items[0].quantity,6);
+});
+test("ambiguous committed write is not replayed and retrying Add does not add twice",async()=>{
+  const f=fixture();f.load("@/lib/utils/cartClient.ts").setCartSession("clerk-a");const service=f.load("@/lib/utils/cart-quantity.ts");let lost=false;
+  const requests=connectBrowser(f,async(route,_body,send)=>{const result=await send();if(route==="add"&&!lost){lost=true;throw Error("lost response");}return result;});
+  await assert.rejects(service.changeStorefrontQuantity("clerk-a",P,{type:"add"}),/lost response/);assert.equal(requests.filter(r=>r.url.endsWith("/add")).length,1);
+  await service.changeStorefrontQuantity("clerk-a",P,{type:"add"});assert.equal(f.state.carts.get(A).items[0].quantity,1);assert.equal(requests.filter(r=>r.url.endsWith("/add")).length,1);
+});
+test("queued cart actions are cancelled when the signed-in session changes",async()=>{
+  const f=fixture();connectBrowser(f);const client=f.load("@/lib/utils/cartClient.ts");client.setCartSession("clerk-a");const service=f.load("@/lib/utils/cart-quantity.ts");
+  let release;const held=f.locks.request("dreamshop-cart-quantity",()=>new Promise(resolve=>{release=resolve;}));await until(()=>release);
+  const change=service.changeStorefrontQuantity("clerk-a",P,{type:"add"});client.setCartSession("clerk-b");release();await held;await assert.rejects(change,/account changed/);assert.equal(f.state.carts.size,0);
+});
+test("guest tabs serialize quantity edits and preserve merge recovery metadata",async()=>{
+  const a=fixture(),b=fixture({state:a.state,storage:a.storage,locks:a.locks});
+  for(const f of [a,b]){f.load("@/lib/utils/cartClient.ts").setCartSession(null);f.browser.fetch=async()=>Response.json({products:[{_id:P}]});}
+  const first=a.load("@/lib/utils/cart-quantity.ts"),second=b.load("@/lib/utils/cart-quantity.ts");await first.changeStorefrontQuantity(null,P,{type:"add"});
+  const guest=a.load("@/lib/utils/guest-state.ts");const before=guest.readGuestState();guest.writeGuestState({...before,warnings:["Retained recovery note"],recoveryRaw:"original data"});
+  await Promise.all([first.changeStorefrontQuantity(null,P,{type:"step",delta:1}),second.changeStorefrontQuantity(null,P,{type:"step",delta:1})]);
+  const after=guest.readGuestState();assert.equal(after.items[0].quantity,3);assert.equal(after.recoveryRaw,"original data");assert.equal(after.warnings[0],"Retained recovery note");
+  await assert.rejects(second.changeStorefrontQuantity(null,P,{type:"set",quantity:5,expectedQuantity:1}),/changed/);assert.equal(guest.readGuestState().items[0].quantity,3);
+});
+test("unavailable guest items can decrease or be removed but cannot increase",async()=>{
+  const f=fixture();f.load("@/lib/utils/cartClient.ts").setCartSession(null);const local=f.load("@/lib/utils/localCart.ts");local.addToLocalCart(P,2);f.browser.fetch=async()=>Response.json({products:[]});const service=f.load("@/lib/utils/cart-quantity.ts");
+  await assert.rejects(service.changeStorefrontQuantity(null,P,{type:"step",delta:1}),/unavailable/);await service.changeStorefrontQuantity(null,P,{type:"step",delta:-1});assert.equal(local.getLocalCart()[0].quantity,1);
+  await assert.rejects(service.changeStorefrontQuantity(null,P,{type:"step",delta:-1}),/1 to 99/);await service.changeStorefrontQuantity(null,P,{type:"remove"});assert.equal(local.getLocalCart().length,0);
+});
+
+test("quantity edits without cross-tab locking fail without discarding the saved guest cart",async()=>{
+  const f=fixture({noLocks:true});const local=f.load("@/lib/utils/localCart.ts");local.addToLocalCart(P,3);f.load("@/lib/utils/cartClient.ts").setCartSession(null);
+  await assert.rejects(f.load("@/lib/utils/cart-quantity.ts").changeStorefrontQuantity(null,P,{type:"step",delta:1}),/Web Locks/);assert.equal(local.getLocalCart()[0].quantity,3);
+});
+
+test("authenticated tabs without Web Locks retain atomic quantity behavior through server preconditions",async()=>{
+  const a=fixture({noLocks:true}),b=fixture({state:a.state,storage:a.storage,noLocks:true});for(const f of [a,b]){connectBrowser(f);f.load("@/lib/utils/cartClient.ts").setCartSession("clerk-a");}
+  const first=a.load("@/lib/utils/cart-quantity.ts"),second=b.load("@/lib/utils/cart-quantity.ts");await Promise.all([first.changeStorefrontQuantity("clerk-a",P,{type:"add"}),second.changeStorefrontQuantity("clerk-a",P,{type:"add"})]);assert.equal(a.state.carts.get(A).items[0].quantity,1);
+  await Promise.all([first.changeStorefrontQuantity("clerk-a",P,{type:"step",delta:1}),second.changeStorefrontQuantity("clerk-a",P,{type:"step",delta:1})]);assert.equal(a.state.carts.get(A).items[0].quantity,3);
 });

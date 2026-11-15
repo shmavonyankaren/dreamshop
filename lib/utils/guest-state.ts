@@ -3,6 +3,7 @@ import { cartItemsSchema, cartItemSchema, MAX_CART_ITEMS, MAX_QUANTITY, operatio
 
 export const CART_KEY = "dreamshop_cart";
 export const CART_EVENT = "dreamshop-cart-changed";
+export const CART_BROADCAST_KEY = "dreamshop-cart-changed";
 export const SYNC_EVENT = "dreamshop-cart-sync";
 export type PendingMerge = {
   operationId: string;
@@ -65,6 +66,8 @@ export function writeGuestState(state: GuestState) {
   localStorage.setItem(CART_KEY, JSON.stringify(stateSchema.parse(state)));
 }
 export function notifyCartChanged() {
+  // Invalidation only: no cart data or identity is trusted from another tab.
+  try { localStorage.setItem(CART_BROADCAST_KEY, crypto.randomUUID()); } catch { /* Local events still work if storage is unavailable. */ }
   if (typeof window !== "undefined" && window.dispatchEvent) window.dispatchEvent(new Event(CART_EVENT));
 }
 export async function withGuestLock<T>(operation: () => T | Promise<T>): Promise<T> {

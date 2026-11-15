@@ -35,7 +35,8 @@ function fixture() {
     "components/cart/CartSyncStatus.tsx":{default:()=>null},
     "components/products/StorefrontPurchase.tsx":{StorefrontPurchase:({productId})=>React.createElement("button",{"data-cart-product":productId},"Add to cart")},
     "components/products/StorefrontImage.tsx":{StorefrontImage:({title})=>React.createElement("span",null,title)},
-    "components/shared/MarketingHero.tsx":{MarketingHero:({title})=>React.createElement("header",null,title)},
+    "components/shared/MarketingHero.tsx":{MarketingHero:({title})=>React.createElement("header",null,title),ElectronicsArtwork:()=>null},
+    "lib/server/storefront-service.ts":{getHomepageData:async()=>({products:[...state.products.values()],categories:[],productError:false,categoryError:false})},
   };
   const cache=new Map();
   function load(spec,parent=path.join(root,"index.ts")){
@@ -76,7 +77,7 @@ test("guest favorite button is a sign-in prompt",()=>{const f=fixture();f.state.
 test("saved favorite buttons render pressed state",()=>{const f=fixture();f.state.saved=[P];const {FavoriteButton}=f.load("@/components/customer/FavoriteButton");assert(renderToStaticMarkup(React.createElement(FavoriteButton,{productId:P,title:"Product"})).includes('aria-pressed="true"'));});
 test("product cards contain a favorite control and existing cart integration",()=>{const f=fixture();const {ProductCard}=f.load("@/components/products/StorefrontProducts");const html=renderToStaticMarkup(React.createElement(ProductCard,{product:f.state.products.get(P)}));assert(html.includes("Save Product to wishlist"));assert(html.includes('data-cart-product="'+P+'"'));});
 test("wishlist cards expose removal and existing add-to-cart control",()=>{const f=fixture();f.state.saved=[P,Q];const {WishlistPage}=f.load("@/components/customer/WishlistPage");const html=renderToStaticMarkup(React.createElement(WishlistPage));assert(html.includes('data-cart-product="'+P+'"'));assert(html.includes("Remove"));assert(html.includes("2 Saved Items"));});
-test("product details integrate the shared favorite and quantity cart controls",()=>{const source=fs.readFileSync(path.join(root,"app/(root)/all-products/[productId]/page.tsx"),"utf8").replace(/\s+/g," ");assert(source.includes("<FavoriteButton productId={product._id}"));assert(source.includes("title={product.title} quantitySelector"));});
+test("product details integrate the shared favorite and quantity cart controls",()=>{const source=fs.readFileSync(path.join(root,"app/(root)/all-products/[productId]/page.tsx"),"utf8").replace(/\s+/g," ");assert(source.includes("<FavoriteButton productId={product._id}"));assert(source.includes("<StorefrontPurchase productId={product._id} title={product.title}"));});
 test("cart empty state provides a working catalog link",()=>{const f=fixture();const {CartPresentation}=f.load("@/components/cart/CartPresentation");const html=renderToStaticMarkup(React.createElement(CartPresentation,{products:[],pending:false,onRemove(){},onQuantityChange(){}}));assert(html.includes("Your cart is empty"));assert(html.includes('href="/all-products"'));});
 test("cart renders quantity bounds, removal, listed prices and unavailable checkout",()=>{const f=fixture();const {CartPresentation}=f.load("@/components/cart/CartPresentation");const html=renderToStaticMarkup(React.createElement(CartPresentation,{products:[{...f.state.products.get(P),quantity:99}],pending:false,onRemove(){},onQuantityChange(){}}));assert(html.includes("Increase quantity of Product"));assert(html.includes("Remove Product from cart"));assert(html.includes("10.00"));assert(html.includes("No order will be placed"));assert(html.includes("disabled"));});
 test("price summary never invents currency or sums unrestricted price strings",()=>{const f=fixture();const {cartPriceSummary}=f.load("@/lib/customer-pricing");for(const price of ["10.00","$10","1,000","NaN","-20","10.999","Infinity"]){const result=cartPriceSummary([{price,quantity:2}]);assert.equal(result.itemCount,2);assert.equal(result.subtotal,undefined);assert(result.reason.includes("currency")||result.reason.includes("cannot be safely"));}assert.equal(cartPriceSummary([]).itemCount,0);});
@@ -95,4 +96,19 @@ test("wishlist DTO and shared storefront/cart views preserve and render explicit
   const {CartPresentation}=f.load("@/components/cart/CartPresentation");
   const html=renderToStaticMarkup(React.createElement(CartPresentation,{products:[{...product,quantity:2}],pending:false,onRemove(){},onQuantityChange(){}}));
   assert(html.includes("\u20ac12.50"));assert(html.includes("\u20ac25.00"));assert(!html.includes("incorrect legacy string"));
+});
+
+for(const currency of ["EUR","USD"])test("homepage product cards retain links, favorites, cart and "+currency+" formatting",async()=>{
+  const f=fixture();Object.assign(f.state.products.get(P),{currency,priceCents:1250,title:"A long product title with descriptive words that should stay accessible when clamped"});
+  const html=renderToStaticMarkup(await f.load("@/app/page").default());
+  assert(html.includes("Explore Our Products"));assert(html.includes('href="/all-products/'+P+'"'));assert(html.includes('data-cart-product="'+P+'"'));assert(html.includes("to wishlist"));
+  assert(html.includes(currency==="EUR"?"\u20ac12.50":"$12.50"));assert(html.includes('title="A long product title'));
+  assert(html.includes("auto-rows-fr"));for(const breakpoint of ["sm:grid-cols-2","md:gap-6","lg:grid-cols-3","xl:grid-cols-4"])assert(html.includes(breakpoint));
+  assert(html.includes("aspect-[4/3]"));assert(html.includes("line-clamp-2"));assert(html.includes("mt-auto"));assert(!html.includes('class="ds-panel marketing-product"'));
+});
+test("catalog cards keep category and merchant links while homepage uses the same shopping controls",()=>{
+  const f=fixture(),{ProductCard}=f.load("@/components/products/StorefrontProducts");const product={...f.state.products.get(P),publicStore:{name:"Merchant shop",slug:"merchant-shop"}};
+  const catalog=renderToStaticMarkup(React.createElement(ProductCard,{product}));const home=renderToStaticMarkup(React.createElement(ProductCard,{product,variant:"home"}));
+  assert(catalog.includes('href="/stores/merchant-shop"'));assert(catalog.includes("Category"));assert(!home.includes('href="/stores/merchant-shop"'));
+  for(const html of [home,catalog]){assert(html.includes('data-cart-product="'+P+'"'));assert(html.includes("currency unspecified"));assert(html.includes("absolute right-2 top-2"));}
 });

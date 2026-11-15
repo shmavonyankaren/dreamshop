@@ -7,7 +7,7 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "test:cart": "node --test tests/cart.test.cjs",
+    "test:cart": "node --test tests/cart.test.cjs tests/cart-quantity-ui.test.cjs",
     "test:identity": "node --test tests/identity.test.cjs tests/identity-ui.test.cjs",
     "test:authorization": "node --test tests/authorization.test.cjs",
     "test:storefront": "node --test tests/storefront.test.cjs",

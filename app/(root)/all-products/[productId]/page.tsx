@@ -100,11 +100,7 @@ export default async function ProductDetails({ params }: Props) {
             </ul>
           )}
           <div className="mt-auto border-t border-border pt-6">
-            <StorefrontPurchase
-              productId={product._id}
-              title={product.title}
-              quantitySelector
-            />
+            <StorefrontPurchase productId={product._id} title={product.title} />
             <div className="mt-3">
               <FavoriteButton
                 productId={product._id}

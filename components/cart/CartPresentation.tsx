@@ -2,15 +2,13 @@
 import { formatPrice } from "@/lib/money";
 import Link from "next/link";
 import {
-  Minus,
-  Plus,
   Trash2,
   ShoppingCart,
   ArrowRight,
   LockKeyhole,
 } from "lucide-react";
 import type { ProductDTO } from "@/lib/cart-contract";
-import { MAX_QUANTITY } from "@/lib/cart-contract";
+import { QuantityControl } from "./QuantityControl";
 import { cartPriceSummary } from "@/lib/customer-pricing";
 import { StorefrontImage } from "@/components/products/StorefrontImage";
 import { Button } from "@/components/ui/button";
@@ -19,11 +17,15 @@ export function CartPresentation({
   products,
   pending,
   onQuantityChange,
+  onQuantityStep,
+  pendingIds = [],
   onRemove,
 }: {
   products: (ProductDTO & { quantity: number; available?: boolean })[];
   pending: boolean;
-  onQuantityChange: (id: string, quantity: number) => void;
+  pendingIds?: string[];
+  onQuantityStep?: (id: string, delta: -1 | 1) => void;
+  onQuantityChange: (id: string, quantity: number, expectedQuantity?: number) => void;
   onRemove: (id: string) => void;
 }) {
   const summary = cartPriceSummary(products);
@@ -95,44 +97,18 @@ export function CartPresentation({
                 </p>
               </div>
               <div className="col-span-2 flex flex-wrap items-center justify-between gap-3 sm:col-span-1 sm:flex-col sm:items-end">
-                <div className="inline-flex items-center rounded-xl border border-input">
-                  <Button
-                    size="icon"
-                    variant="ghost"
-                    disabled={pending || product.quantity <= 1}
-                    aria-label={"Decrease quantity of " + product.title}
-                    onClick={() =>
-                      onQuantityChange(product._id, product.quantity - 1)
-                    }
-                  >
-                    <Minus />
-                  </Button>
-                  <span
-                    aria-live="polite"
-                    aria-label={"Quantity of " + product.title}
-                    className="min-w-8 text-center tabular-nums"
-                  >
-                    {product.quantity}
-                  </span>
-                  <Button
-                    size="icon"
-                    variant="ghost"
-                    disabled={
-                      pending ||
-                      product.available === false ||
-                      product.quantity >= MAX_QUANTITY
-                    }
-                    aria-label={"Increase quantity of " + product.title}
-                    onClick={() =>
-                      onQuantityChange(product._id, product.quantity + 1)
-                    }
-                  >
-                    <Plus />
-                  </Button>
-                </div>
+                <QuantityControl
+                  quantity={product.quantity}
+                  title={product.title}
+                  disabled={pending}
+                  pending={pendingIds.includes(product._id)}
+                  unavailable={product.available === false}
+                  onStep={delta => onQuantityStep ? onQuantityStep(product._id, delta) : onQuantityChange(product._id, product.quantity + delta, product.quantity)}
+                  onCommit={(quantity, expectedQuantity) => onQuantityChange(product._id, quantity, expectedQuantity)}
+                />
                 <Button
                   variant="ghost"
-                  disabled={pending}
+                  disabled={pending || pendingIds.includes(product._id)}
                   aria-label={"Remove " + product.title + " from cart"}
                   onClick={() => onRemove(product._id)}
                   className="text-destructive"

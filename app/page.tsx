@@ -1,5 +1,3 @@
-import { formatPrice } from "@/lib/money";
-import { FavoriteButton } from "@/components/customer/FavoriteButton";
 import Link from "next/link";
 import {
   ArrowRight,
@@ -16,8 +14,7 @@ import {
   ElectronicsArtwork,
 } from "@/components/shared/MarketingHero";
 import { MarketingCard } from "@/components/shared/MarketingCard";
-import { StorefrontImage } from "@/components/products/StorefrontImage";
-import { StorefrontPurchase } from "@/components/products/StorefrontPurchase";
+import { ProductCard } from "@/components/products/StorefrontProducts";
 import { catalogHref } from "@/lib/storefront-contract";
 import CartSyncStatus from "@/components/cart/CartSyncStatus";
 import { getHomepageData } from "@/lib/server/storefront-service";
@@ -131,38 +128,9 @@ export default async function Home() {
             Please try refreshing. We could not reach the product catalog.
           </ErrorFeedback>
         ) : data.products.length ? (
-          <div className="marketing-products">
+          <div className="grid auto-rows-fr grid-cols-1 gap-5 sm:grid-cols-2 md:gap-6 lg:grid-cols-3 xl:grid-cols-4">
             {data.products.slice(0, 5).map((product) => (
-              <article key={product._id} className="ds-panel marketing-product">
-                <Link
-                  href={"/all-products/" + product._id}
-                  aria-label={"View " + product.title}
-                  className="marketing-product-image"
-                >
-                  <StorefrontImage
-                    src={product.imageUrl}
-                    title={product.title}
-                  />
-                </Link>
-                <div className="min-w-0">
-                  <h3>
-                    <Link href={"/all-products/" + product._id}>
-                      {product.title}
-                    </Link>
-                  </h3>
-                  <FavoriteButton
-                    productId={product._id}
-                    title={product.title}
-                  />
-                  <p className="product-price">
-                    {formatPrice(product)}
-                  </p>
-                  <StorefrontPurchase
-                    productId={product._id}
-                    title={product.title}
-                  />
-                </div>
-              </article>
+              <ProductCard key={product._id} product={product} variant="home" />
             ))}
           </div>
         ) : (

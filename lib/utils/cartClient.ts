@@ -1,12 +1,15 @@
 import type { CartApiResponse, CartDTO, ProductDTO, MergeResponse } from "../cart-contract";
 import { readGuestState, writeGuestState, withGuestLock, notifyCartChanged, SYNC_EVENT, type PendingMerge } from "./guest-state";
 export type { CartApiResponse } from "../cart-contract";
+export class CartRequestError extends Error {
+  constructor(message: string, public code: string, public status: number) { super(message); }
+}
 async function request<T>(url: string, body?: unknown, signal?: AbortSignal): Promise<T> {
-  const response = await fetch(url, { cache: "no-store", signal, ...(body === undefined ? {} : {
+  const response = await fetch(url, { cache: "no-store", signal: signal ?? AbortSignal.timeout(15_000), ...(body === undefined ? {} : {
     method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body),
   }) });
   const data = await response.json();
-  if (!response.ok) throw new Error(data.message || "Unable to update your cart. Please retry.");
+  if (!response.ok) throw new CartRequestError(data.message || "Unable to update your cart. Please retry.", data.code, response.status);
   return data as T;
 }
 export async function fetchProductsByIds(ids: string[]): Promise<ProductDTO[]> {
@@ -16,11 +19,11 @@ export async function fetchProductsByIds(ids: string[]): Promise<ProductDTO[]> {
 export async function fetchCartByUser(): Promise<CartDTO | null> {
   return (await request<{ cart: CartDTO | null }>("/api/cart")).cart;
 }
-export function addProductToUserCart(productId: string, quantity = 1) {
-  return request<CartApiResponse>("/api/cart/add", { productId, quantity });
+export function addProductToUserCart(productId: string, quantity = 1, expectedQuantity?: number) {
+  return request<CartApiResponse>("/api/cart/add", { productId, quantity, ...(expectedQuantity !== undefined ? { expectedQuantity } : {}) });
 }
-export function updateProductQuantity(productId: string, quantity: number) {
-  return request<CartApiResponse>("/api/cart/update", { productId, quantity });
+export function updateProductQuantity(productId: string, quantity: number, expectedQuantity?: number) {
+  return request<CartApiResponse>("/api/cart/update", { productId, quantity, ...(expectedQuantity !== undefined ? { expectedQuantity } : {}) });
 }
 export function removeProductFromUserCart(productId: string) {
   return request<CartApiResponse>("/api/cart/remove", { productId });
@@ -35,6 +38,7 @@ export type SyncStatus = { state: "idle" | "syncing" | "success" | "attention" |
 let status: SyncStatus = { state: "idle", message: "" };
 let currentSession: string | null | undefined;
 export function setCartSession(session: string | null) { currentSession = session; }
+export function getCartSession() { return currentSession; }
 export function getCartSyncStatus() { return status; }
 function report(next: SyncStatus) {
   status = next;

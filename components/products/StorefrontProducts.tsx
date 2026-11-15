@@ -14,34 +14,53 @@ export function ProductPrice(price: Price) {
     </p>
   );
 }
-export function ProductCard({ product }: { product: StoreProduct }) {
+export function ProductCard({
+  product,
+  variant = "catalog",
+}: {
+  product: StoreProduct;
+  variant?: "catalog" | "home";
+}) {
   return (
-    <article className="ds-panel group relative flex min-w-0 flex-col overflow-hidden">
-      <div className="absolute right-2 top-2 z-10">
-        <FavoriteButton productId={product._id} title={product.title} />
-      </div>
-      <Link
-        href={`/all-products/${product._id}`}
-        className="block"
-        aria-label={`View ${product.title}`}
-      >
-        <div className="aspect-[4/3] overflow-hidden bg-gradient-to-br from-white to-secondary">
-          <StorefrontImage src={product.imageUrl} title={product.title} />
+    <article className="ds-panel group relative flex h-full min-w-0 flex-col overflow-hidden">
+      <div className="relative shrink-0">
+        <div className="absolute right-2 top-2 z-10">
+          <FavoriteButton productId={product._id} title={product.title} />
         </div>
-      </Link>
+        <Link
+          href={`/all-products/${product._id}`}
+          className="block"
+          aria-label={`View ${product.title}`}
+        >
+          <div className="aspect-[4/3] overflow-hidden bg-gradient-to-br from-white to-secondary">
+            <StorefrontImage src={product.imageUrl} title={product.title} />
+          </div>
+        </Link>
+      </div>
       <div className="flex flex-1 flex-col gap-3 p-5">
-        <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-          {product.category?.name || "Explore Dreamshop"}
-        </p>
-        <h3 className="break-words">
+        {variant === "catalog" && (
+          <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+            {product.category?.name || "Explore Dreamshop"}
+          </p>
+        )}
+        <h3
+          className={
+            variant === "home" ? "min-h-12 text-base leading-6" : "break-words"
+          }
+        >
           <Link
             href={`/all-products/${product._id}`}
-            className="hover:text-primary"
+            className={
+              variant === "home"
+                ? "line-clamp-2 break-words hover:text-primary"
+                : "hover:text-primary"
+            }
+            title={variant === "home" ? product.title : undefined}
           >
             {product.title}
           </Link>
         </h3>
-        {product.publicStore && (
+        {variant === "catalog" && product.publicStore && (
           <Link
             href={`/stores/${product.publicStore.slug}`}
             className="text-sm font-semibold text-primary hover:underline"

@@ -5,7 +5,7 @@ import Cart from "../db/models/cart.model";
 import { eligibleProductsByIds } from "../server/product-eligibility";
 import { requireCartUser } from "../server/authenticated-user";
 import { unavailableProduct } from "../cart-contract";
-import { addCartSchema, cartItemSchema, cartItemsSchema, removeCartSchema, mergeCartSchema, CartError, MAX_MERGE_RECEIPTS, MAX_QUANTITY, MAX_CART_ITEMS, type MergeOutcome, type MergeItemOutcome, type CartDTO, type LocalCartItem } from "../cart-contract";
+import { addCartSchema, updateCartSchema, cartItemsSchema, removeCartSchema, mergeCartSchema, CartError, MAX_MERGE_RECEIPTS, MAX_QUANTITY, MAX_CART_ITEMS, type MergeOutcome, type MergeItemOutcome, type CartDTO, type LocalCartItem } from "../cart-contract";
 
 type MergeReceipt = { operationId: string; fingerprint: string; version: number; outcome: MergeOutcome };
 type StoredCart = { _id: unknown; __v?: number; mergeReceipts?: MergeReceipt[]; items: { product: { toString(): string }; quantity: number }[] };
@@ -54,8 +54,9 @@ export async function addToCart(input: unknown) {
   return changeCart(user, async (items) => {
     await requireProducts([item]);
     const existing = items.find((entry) => entry.productId === item.productId);
+    if (item.expectedQuantity !== undefined && item.expectedQuantity !== (existing?.quantity ?? 0)) throw new CartError(409, "QUANTITY_CONFLICT", "This quantity changed in another view. Please review the latest cart.");
     if (existing) existing.quantity += item.quantity;
-    else items.push(item);
+    else items.push({ productId: item.productId, quantity: item.quantity });
     return items;
   }, true);
 }
@@ -146,10 +147,11 @@ export async function mergeLocalCartToUserCart(input: unknown) {
 }
 export async function updateCartItemQuantity(input: unknown) {
   const user = await requireCartUser();
-  const item = cartItemSchema.parse(input);
+  const item = updateCartSchema.parse(input);
   return changeCart(user, async (items) => {
     const existing = items.find((entry) => entry.productId === item.productId);
     if (!existing) throw new CartError(404, "ITEM_NOT_FOUND", "Product not found in cart.");
+    if (item.expectedQuantity !== undefined && item.expectedQuantity !== existing.quantity) throw new CartError(409, "QUANTITY_CONFLICT", "This quantity changed in another view. Please review the latest cart.");
     if (item.quantity > existing.quantity) await requireProducts([item]);
     existing.quantity = item.quantity;
     return items;

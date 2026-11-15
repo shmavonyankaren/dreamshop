@@ -1,5 +1,6 @@
 "use client";
 
+import { useCartState } from "@/components/cart/useCartState";
 import React, { createContext, useContext, useEffect, useState, useCallback, useRef } from "react";
 import { useUser } from "@clerk/nextjs";
 import { useRouter } from "next/navigation";
@@ -7,9 +8,9 @@ import { getLocalCart } from "@/lib/utils/localCart";
 import { recoverAuthenticatedIdentity } from "@/lib/utils/identityClient";
 import { getCartCount, ensureGuestCartMerged, setCartSession, getCartSyncStatus, dismissGuestConflicts, type SyncStatus } from "@/lib/utils/cartClient";
 
-import { CART_KEY, CART_EVENT, SYNC_EVENT, readGuestState } from "@/lib/utils/guest-state";
+import { CART_KEY, CART_EVENT, CART_BROADCAST_KEY, SYNC_EVENT, readGuestState } from "@/lib/utils/guest-state";
 
-type CartContextType = {
+type CartContextType = ReturnType<typeof useCartState> & {
   syncStatus: SyncStatus;
   refreshVersion: number;
   retrySync: () => Promise<void>;
@@ -31,6 +32,7 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
   const [cartItemsCount, setCartItemsCount] = useState(0);
   const [syncStatus, setSyncStatus] = useState<SyncStatus>({ state: "idle", message: "" });
   const [refreshVersion, setRefreshVersion] = useState(0);
+  const cartState = useCartState(isLoaded ? userId ?? null : undefined, refreshVersion);
   const synchronizeAccount = useCallback(async (id: string, isCurrent: () => boolean) => {
     setSyncStatus({ state: "idle", message: "" });
     const loadingTimer = setTimeout(() => {
@@ -78,6 +80,7 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
       } else setCartItemsCount(getLocalCart().reduce((sum, item) => sum + item.quantity, 0));
     };
     const storageChanged = (event: StorageEvent) => {
+      if (event.key === CART_BROADCAST_KEY || event.key === null) { refresh(); return; }
       if (event.key !== CART_KEY) return;
       try {
         const saved = readGuestState();
@@ -91,11 +94,13 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
     window.addEventListener(SYNC_EVENT, statusChanged);
     window.addEventListener(CART_EVENT, refresh);
     window.addEventListener("storage", storageChanged);
+    window.addEventListener("focus", refresh);
     return () => {
       cancelled = true;
       window.removeEventListener(SYNC_EVENT, statusChanged);
       window.removeEventListener(CART_EVENT, refresh);
       window.removeEventListener("storage", storageChanged);
+      window.removeEventListener("focus", refresh);
     };
   }, [isSignedIn, user?.id]);
 
@@ -130,7 +135,8 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
     <CartContext.Provider
       value={{
         syncStatus, refreshVersion, retrySync, dismissSaved,
-        cartItemsCount,
+        ...cartState,
+        cartItemsCount: cartState.cartReady ? cartState.cartProducts.reduce((sum, item) => sum + item.quantity, 0) : cartItemsCount,
         setCartItemsCount,
         increaseCartCount,
         decreaseCartCount,

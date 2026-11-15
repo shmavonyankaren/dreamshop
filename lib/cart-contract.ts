@@ -10,7 +10,8 @@ export const cartItemsSchema = z.array(cartItemSchema).max(MAX_CART_ITEMS).refin
   (items) => new Set(items.map((item) => item.productId)).size === items.length,
   "Duplicate products are not allowed",
 );
-export const addCartSchema = cartItemSchema.extend({ quantity: quantitySchema.default(1) });
+export const addCartSchema = cartItemSchema.extend({ quantity: quantitySchema.default(1), expectedQuantity: z.number().int().min(0).max(MAX_QUANTITY).optional() });
+export const updateCartSchema = cartItemSchema.extend({ expectedQuantity: quantitySchema.optional() });
 export const removeCartSchema = z.object({ productId: productIdSchema }).strict();
 export const operationIdSchema = z.string().uuid().transform((id) => id.toLowerCase());
 export const mergeCartSchema = z.object({
